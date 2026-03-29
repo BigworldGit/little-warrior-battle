@@ -3,689 +3,932 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>小战士大冒险 - 双人对战 🌟</title>
+    <title>小战士大冒险 - 3D 双人对战 🌟</title>
+    <meta name="description" content="小战士大冒险 - 在线3D双人对战游戏">
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { overflow: hidden; font-family: 'Arial', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); touch-action: none; }
-        #gameCanvas { display: block; background: linear-gradient(to bottom, #87CEEB 0%, #98D8C8 50%, #90EE90 100%); max-width: 100vw; max-height: 100vh; }
-        
-        /* Login Screen */
+        body { overflow: hidden; font-family: 'Outfit', sans-serif; background: #0a0a1a; touch-action: none; color: #fff; }
+        #gameContainer { width: 100vw; height: 100vh; position: relative; }
+        canvas { display: block; }
+
+        /* ── Glassmorphism Panel ── */
+        .glass {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 16px;
+        }
+
+        /* ── Login Screen ── */
         #loginScreen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 1000;
+            position: fixed; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         }
-        #loginScreen h1 { color: white; font-size: 36px; margin-bottom: 30px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-        #loginScreen input {
-            padding: 15px 25px; font-size: 18px; border: none; border-radius: 30px;
-            width: 280px; text-align: center; margin-bottom: 20px; outline: none;
+        #loginScreen h1 {
+            font-size: 42px; font-weight: 900; margin-bottom: 10px;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-align: center; line-height: 1.3;
         }
-        #loginScreen button {
-            padding: 15px 50px; font-size: 20px; border: none; border-radius: 30px;
-            background: linear-gradient(135deg, #ffd700, #ffaa00); color: #333;
-            cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
+        #loginScreen .subtitle {
+            font-size: 16px; color: rgba(255,255,255,0.5); margin-bottom: 40px;
+            letter-spacing: 4px; text-transform: uppercase;
         }
-        #loginScreen button:hover { transform: scale(1.05); }
-        #status { color: white; margin-top: 20px; font-size: 18px; }
-        
-        /* Waiting Screen */
+        .login-card {
+            padding: 40px; width: 360px; text-align: center;
+        }
+        .login-card input {
+            width: 100%; padding: 16px 24px; font-size: 18px; border: none;
+            border-radius: 12px; background: rgba(255,255,255,0.1); color: #fff;
+            outline: none; text-align: center; margin-bottom: 24px; font-family: inherit;
+            border: 1px solid rgba(255,255,255,0.1); transition: border-color 0.3s;
+        }
+        .login-card input:focus { border-color: rgba(247,151,30,0.6); }
+        .login-card input::placeholder { color: rgba(255,255,255,0.3); }
+        .btn-primary {
+            width: 100%; padding: 16px; font-size: 20px; font-weight: 700;
+            border: none; border-radius: 12px; cursor: pointer; font-family: inherit;
+            background: linear-gradient(135deg, #f7971e, #ffd200);
+            color: #1a1a2e; box-shadow: 0 4px 24px rgba(247,151,30,0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(247,151,30,0.5); }
+        .btn-primary:active { transform: scale(0.97); }
+        #status { color: rgba(255,255,255,0.6); margin-top: 16px; font-size: 14px; }
+
+        /* ── Waiting Screen ── */
         #waitingScreen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: none; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 1000;
+            position: fixed; inset: 0; display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         }
-        #waitingScreen h2 { color: white; font-size: 28px; }
-        .loader {
-            width: 60px; height: 60px; border: 5px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;
-            margin: 30px 0;
+        #waitingScreen h2 { font-size: 28px; font-weight: 700; color: rgba(255,255,255,0.9); }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #ffd200; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 30px 0;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        
-        /* Game Over Overlay */
-        #gameOverScreen {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(255,255,255,0.95); padding: 40px; border-radius: 20px;
-            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 1000;
+        .wait-tip { color: rgba(255,255,255,0.4); font-size: 14px; }
+
+        /* ── HUD Overlay ── */
+        .ui-overlay { position: fixed; inset: 0; pointer-events: none; display: none; }
+
+        /* Health Bars */
+        .hud-top { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; gap: 16px; }
+        .health-container { flex: 1; max-width: 40%; }
+        .health-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
+        .health-name.enemy { text-align: right; color: #ff6b6b; }
+        .health-name.ally { color: #69db7c; }
+        .health-bar-wrap {
+            height: 24px; border-radius: 12px; overflow: hidden; position: relative;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
         }
-        #gameOverScreen h2 { font-size: 36px; margin-bottom: 20px; }
-        #gameOverScreen button {
-            background: linear-gradient(135deg, #667eea, #764ba2); color: white;
-            border: none; padding: 15px 40px; font-size: 20px; border-radius: 30px;
-            cursor: pointer; margin: 10px;
+        .health-bar-fill {
+            height: 100%; border-radius: 12px; transition: width 0.4s ease;
+            position: relative;
+        }
+        .health-bar-fill.ally { background: linear-gradient(90deg, #51cf66, #94d82d); }
+        .health-bar-fill.enemy { background: linear-gradient(90deg, #ff6b6b, #f06595); }
+        .health-bar-fill::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 60%);
+            border-radius: 12px;
+        }
+        .health-text {
+            position: absolute; top: 50%; right: 10px; transform: translateY(-50%);
+            font-size: 11px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
-        /* UI Overlay */
-        .ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .health-bar {
-            position: absolute; top: 20px; height: 30px; border: 3px solid #333; border-radius: 15px;
-            background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        /* Weapon Info */
+        .weapon-toast {
+            position: absolute; top: 80px; right: 20px;
+            padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+            opacity: 0; transform: translateX(60px); transition: all 0.4s cubic-bezier(.4,0,.2,1);
         }
-        .health-bar-inner { height: 100%; border-radius: 12px; transition: width 0.3s ease; }
-        #playerHealth { left: 20px; width: 35%; }
-        #playerHealth .health-bar-inner { background: linear-gradient(90deg, #4CAF50, #45a049); }
-        #playerHealth .health-label { background: linear-gradient(90deg, #4CAF50, #45a049); }
-        #opponentHealth { right: 20px; width: 35%; }
-        #opponentHealth .health-bar-inner { background: linear-gradient(90deg, #f44336, #d32f2f); }
-        #opponentHealth .health-label { background: linear-gradient(90deg, #f44336, #d32f2f); }
-        .health-label {
-            position: absolute; top: -25px; left: 0; right: 0; text-align: center;
-            font-size: 14px; font-weight: bold; color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        .health-value {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 16px; font-weight: bold; color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-        }
-        
-        .weapon-info {
-            position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95);
-            padding: 15px 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: none; animation: slideIn 0.3s ease;
-        }
-        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .weapon-info.show { display: block; }
-        .weapon-icon { font-size: 48px; text-align: center; margin-bottom: 10px; }
-        .weapon-name { font-size: 18px; font-weight: bold; color: #333; text-align: center; margin-bottom: 5px; }
-        .weapon-stats { font-size: 14px; color: #666; text-align: center; }
-        .weapon-power { color: #ff6b6b; font-weight: bold; }
-
-        .player-info {
-            position: absolute; top: 70px; font-size: 14px; font-weight: bold;
-            color: white; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-        }
-        #playerInfo { left: 20px; }
-        #opponentInfo { right: 20px; text-align: right; }
+        .weapon-toast.show { opacity: 1; transform: translateX(0); }
+        .weapon-emoji { font-size: 36px; }
+        .weapon-detail .w-name { font-size: 16px; font-weight: 700; }
+        .weapon-detail .w-power { font-size: 13px; color: #ff6b6b; font-weight: 600; }
 
         /* Joystick */
-        .joystick-container { position: absolute; bottom: 40px; left: 40px; width: 120px; height: 120px; pointer-events: auto; }
-        .joystick-base {
-            width: 100%; height: 100%; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-            border: 4px solid rgba(255,255,255,0.6); box-shadow: 0 8px 16px rgba(0,0,0,0.3); position: relative;
+        .joystick-zone {
+            position: absolute; bottom: 30px; left: 30px; width: 130px; height: 130px;
+            pointer-events: auto;
         }
-        .joystick-stick {
-            position: absolute; width: 50px; height: 50px; border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
-            border: 3px solid rgba(0,0,0,0.2); box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.1s ease;
+        .joy-base {
+            width: 100%; height: 100%; border-radius: 50%; position: relative;
+            background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15);
+        }
+        .joy-knob {
+            position: absolute; width: 54px; height: 54px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.35), rgba(255,255,255,0.1));
+            border: 2px solid rgba(255,255,255,0.25);
+            top: 50%; left: 50%; transform: translate(-50%, -50%); transition: all 0.08s ease;
         }
 
-        /* Action buttons */
-        .action-buttons { position: absolute; bottom: 40px; right: 40px; pointer-events: auto; }
-        .action-btn {
-            width: 70px; height: 70px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.6);
-            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), rgba(255,255,255,0.2));
-            box-shadow: 0 6px 12px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;
-            font-size: 24px; margin: 10px; cursor: pointer; user-select: none;
-            transition: all 0.2s ease; backdrop-filter: blur(10px);
+        /* Action Buttons */
+        .action-zone { position: absolute; bottom: 30px; right: 30px; pointer-events: auto; }
+        .act-btn {
+            width: 64px; height: 64px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 26px;
+            margin: 8px; cursor: pointer; user-select: none; transition: all 0.15s;
+            background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15);
         }
-        .action-btn:active { transform: scale(0.9); box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
-        .button-row { display: flex; justify-content: center; gap: 10px; }
+        .act-btn:active { transform: scale(0.88); background: rgba(255,255,255,0.15); }
+        .btn-row { display: flex; justify-content: center; gap: 8px; }
 
-        .connection-status {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            color: white; font-size: 14px; text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        /* Connection */
+        .conn-status {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            font-size: 12px; color: rgba(255,255,255,0.4);
+        }
+
+        /* Game Over */
+        #gameOverScreen {
+            display: none; position: fixed; inset: 0; z-index: 1000;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(12px);
+            align-items: center; justify-content: center; flex-direction: column;
+        }
+        #gameOverScreen.show { display: flex; }
+        #gameOverText {
+            font-size: 48px; font-weight: 900; margin-bottom: 30px;
+            text-shadow: 0 0 40px rgba(255,255,255,0.3);
+        }
+        .go-btn {
+            padding: 14px 36px; font-size: 18px; font-weight: 700; border: none;
+            border-radius: 12px; cursor: pointer; margin: 8px; font-family: inherit;
+            transition: transform 0.2s;
+        }
+        .go-btn:hover { transform: translateY(-2px); }
+        .go-btn.primary { background: linear-gradient(135deg, #f7971e, #ffd200); color: #1a1a2e; }
+        .go-btn.secondary { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+
+        /* Damage popup */
+        .dmg-popup {
+            position: fixed; pointer-events: none; font-size: 28px; font-weight: 900;
+            color: #ff6b6b; text-shadow: 0 0 10px rgba(255,0,0,0.5);
+            animation: dmgFloat 0.8s ease-out forwards; z-index: 500;
+        }
+        @keyframes dmgFloat {
+            0% { opacity: 1; transform: translateY(0) scale(1.2); }
+            100% { opacity: 0; transform: translateY(-60px) scale(0.8); }
         }
     </style>
 </head>
 <body>
-    <!-- Login Screen -->
+    <div id="gameContainer"></div>
+
+    <!-- Login -->
     <div id="loginScreen">
-        <h1>小战士大冒险 🌟<br>双人对战版</h1>
-        <input type="text" id="playerName" placeholder="输入你的名字" maxlength="12">
-        <button onclick="joinGame()">开始匹配</button>
-        <div id="status"></div>
+        <h1>小战士大冒险 ⚔️</h1>
+        <div class="subtitle">3D 双人对战版</div>
+        <div class="login-card glass">
+            <input type="text" id="playerName" placeholder="输入你的名字" maxlength="12">
+            <button class="btn-primary" id="joinBtn">开始匹配</button>
+            <div id="status"></div>
+        </div>
     </div>
 
-    <!-- Waiting Screen -->
+    <!-- Waiting -->
     <div id="waitingScreen">
         <h2>匹配对手中...</h2>
-        <div class="loader"></div>
-        <p style="color: white;">请稍候</p>
+        <div class="spinner"></div>
+        <p class="wait-tip">请稍候</p>
     </div>
 
-    <!-- Game Canvas -->
-    <canvas id="gameCanvas"></canvas>
-
-    <!-- UI Overlay -->
-    <div class="ui-overlay" id="uiOverlay" style="display: none;">
-        <!-- Health bars -->
-        <div id="playerHealth" class="health-bar">
-            <div class="health-label">我方</div>
-            <div class="health-bar-inner" style="width: 100%"></div>
-            <div class="health-value">100/100</div>
-        </div>
-        <div id="opponentHealth" class="health-bar">
-            <div class="health-label">对手</div>
-            <div class="health-bar-inner" style="width: 100%"></div>
-            <div class="health-value">100/100</div>
-        </div>
-        
-        <div id="playerInfo" class="player-info"></div>
-        <div id="opponentInfo" class="player-info"></div>
-
-        <!-- Weapon Info -->
-        <div class="weapon-info" id="weaponInfo">
-            <div class="weapon-icon" id="weaponIcon">👊</div>
-            <div class="weapon-name" id="weaponName">拳头</div>
-            <div class="weapon-stats">攻击力: <span class="weapon-power" id="weaponPower">10</span></div>
-        </div>
-
-        <!-- Joystick -->
-        <div class="joystick-container" id="joystick">
-            <div class="joystick-base"><div class="joystick-stick" id="stick"></div></div>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="action-buttons">
-            <div class="button-row"><div class="action-btn" id="weaponBtn">🔄</div></div>
-            <div class="button-row">
-                <div class="action-btn" id="attackBtn">⚔️</div>
-                <div class="action-btn" id="dodgeBtn">🏃</div>
+    <!-- HUD -->
+    <div class="ui-overlay" id="uiOverlay">
+        <div class="hud-top">
+            <div class="health-container">
+                <div class="health-name ally" id="playerInfo">我方</div>
+                <div class="health-bar-wrap">
+                    <div class="health-bar-fill ally" id="playerFill" style="width:100%"></div>
+                    <span class="health-text" id="playerHpText">100/100</span>
+                </div>
+            </div>
+            <div class="health-container">
+                <div class="health-name enemy" id="opponentInfo">对手</div>
+                <div class="health-bar-wrap">
+                    <div class="health-bar-fill enemy" id="opponentFill" style="width:100%"></div>
+                    <span class="health-text" id="opponentHpText">100/100</span>
+                </div>
             </div>
         </div>
-        
-        <div class="connection-status" id="connectionStatus">🟢 已连接</div>
+
+        <div class="weapon-toast glass" id="weaponToast">
+            <div class="weapon-emoji" id="wIcon">👊</div>
+            <div class="weapon-detail">
+                <div class="w-name" id="wName">拳头</div>
+                <div class="w-power">ATK: <span id="wPow">10</span></div>
+            </div>
+        </div>
+
+        <div class="joystick-zone" id="joystickZone">
+            <div class="joy-base"><div class="joy-knob" id="joyKnob"></div></div>
+        </div>
+
+        <div class="action-zone">
+            <div class="btn-row"><div class="act-btn" id="weaponBtn">🔄</div></div>
+            <div class="btn-row">
+                <div class="act-btn" id="attackBtn">⚔️</div>
+                <div class="act-btn" id="dodgeBtn">🏃</div>
+            </div>
+        </div>
+
+        <div class="conn-status" id="connStatus">🟢 已连接</div>
     </div>
 
-    <!-- Game Over Screen -->
+    <!-- Game Over -->
     <div id="gameOverScreen">
-        <h2 id="gameOverText">游戏结束</h2>
-        <button onclick="restartGame()">再来一局</button>
-        <button onclick="location.reload()">返回主页</button>
+        <div id="gameOverText">游戏结束</div>
+        <div>
+            <button class="go-btn primary" onclick="location.reload()">再来一局</button>
+            <button class="go-btn secondary" onclick="location.reload()">返回主页</button>
+        </div>
     </div>
 
     <script>
-        // Socket.io connection
-        const socket = io();
-        
-        // Game state
-        let myPlayerNum = 0;
-        let roomId = null;
-        let gameStarted = false;
-        let opponentLeft = false;
-        
-        // Local player state (what we control)
-        let localPlayer = {
-            x: 200, y: 400, health: 100, maxHealth: 100, weapon: 0,
-            attacking: false, dodging: false, hurt: false, facingRight: true,
-            velocity: { x: 0, y: 0 }
-        };
-        
-        // Remote player state (opponent)
-        let remotePlayer = {
-            x: 600, y: 400, health: 100, maxHealth: 100, weapon: 0,
-            attacking: false, dodging: false, hurt: false, facingRight: false,
-            velocity: { x: 0, y: 0 }
-        };
+    /* ═══════════════════════════════════════════
+       NETWORK
+    ═══════════════════════════════════════════ */
+    const socket = io();
+    let myPlayerNum = 0, roomId = null, gameStarted = false, opponentLeft = false;
 
-        const weapons = ['👊', '⚔️', '🔨', '🏹', '🔱', '⚡', '🔥', '❄️', '💫'];
-        const weaponData = [
-            { name: '拳头', power: 10, icon: '👊' },
-            { name: '宝剑', power: 15, icon: '⚔️' },
-            { name: '战锤', power: 20, icon: '🔨' },
-            { name: '神弓', power: 25, icon: '🏹' },
-            { name: '三叉戟', power: 30, icon: '🔱' },
-            { name: '雷电之力', power: 35, icon: '⚡' },
-            { name: '烈焰刀', power: 40, icon: '🔥' },
-            { name: '冰霜剑', power: 45, icon: '❄️' },
-            { name: '星辰之杖', power: 60, icon: '💫' }
-        ];
+    const localPlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
+        attacking: false, dodging: false, hurt: false, facingRight: true, vx: 0 };
+    const remotePlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
+        attacking: false, dodging: false, hurt: false, facingRight: false, vx: 0 };
 
-        // Canvas setup
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            localPlayer.y = canvas.height - 150;
-            remotePlayer.y = canvas.height - 150;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+    const weaponData = [
+        { name: '拳头', power: 10, icon: '👊', color: 0xffffff },
+        { name: '宝剑', power: 15, icon: '⚔️', color: 0x90caf9 },
+        { name: '战锤', power: 20, icon: '🔨', color: 0x8d6e63 },
+        { name: '神弓', power: 25, icon: '🏹', color: 0xa5d6a7 },
+        { name: '三叉戟', power: 30, icon: '🔱', color: 0x4dd0e1 },
+        { name: '雷电之力', power: 35, icon: '⚡', color: 0xfff176 },
+        { name: '烈焰刀', power: 40, icon: '🔥', color: 0xff7043 },
+        { name: '冰霜剑', power: 45, icon: '❄️', color: 0x80deea },
+        { name: '星辰之杖', power: 60, icon: '💫', color: 0xce93d8 },
+    ];
 
-        // Socket events
-        socket.on('connect', () => {
-            document.getElementById('connectionStatus').textContent = '🟢 已连接';
-        });
-        
-        socket.on('disconnect', () => {
-            document.getElementById('connectionStatus').textContent = '🔴 断开连接';
-        });
+    /* ═══════════════════════════════════════════
+       THREE.JS SCENE
+    ═══════════════════════════════════════════ */
+    const container = document.getElementById('gameContainer');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 12, 18);
+    camera.lookAt(0, 1, 0);
 
-        socket.on('waiting', () => {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('waitingScreen').style.display = 'flex';
-        });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    container.appendChild(renderer.domElement);
 
-        socket.on('gameStart', (data) => {
-            roomId = data.roomId;
-            myPlayerNum = data.playerNum;
-            gameStarted = true;
-            
-            document.getElementById('waitingScreen').style.display = 'none';
-            document.getElementById('uiOverlay').style.display = 'block';
-            
-            // Set initial positions based on player number
-            if (myPlayerNum === 1) {
-                localPlayer.x = 150;
-                remotePlayer.x = canvas.width - 150;
-                localPlayer.facingRight = true;
-                remotePlayer.facingRight = false;
-            } else {
-                localPlayer.x = canvas.width - 150;
-                remotePlayer.x = 150;
-                localPlayer.facingRight = false;
-                remotePlayer.facingRight = true;
+    // Lighting
+    scene.add(new THREE.AmbientLight(0x8899bb, 0.6));
+    const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a5f0b, 0.5);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.2);
+    sun.position.set(8, 16, 6);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+    sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+    scene.add(sun);
+
+    // Fog
+    scene.fog = new THREE.FogExp2(0x8faac4, 0.012);
+
+    // ── Sky Dome ──
+    const skyGeo = new THREE.SphereGeometry(200, 32, 16);
+    const skyMat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: { topColor: { value: new THREE.Color(0x4a90d9) }, bottomColor: { value: new THREE.Color(0xc9e8f0) } },
+        vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+        fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vPos;
+            void main(){ float h = normalize(vPos).y * 0.5 + 0.5; gl_FragColor = vec4(mix(bottomColor,topColor,h),1.0); }`
+    });
+    scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+    // ── Ground ──
+    const groundGeo = new THREE.PlaneGeometry(60, 40, 1, 1);
+    const groundCanvas = document.createElement('canvas');
+    groundCanvas.width = 512; groundCanvas.height = 512;
+    const gctx = groundCanvas.getContext('2d');
+    // grass texture
+    gctx.fillStyle = '#5a9e4b';
+    gctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 4000; i++) {
+        gctx.fillStyle = `hsl(${100 + Math.random()*30}, ${50+Math.random()*30}%, ${30+Math.random()*25}%)`;
+        const gx = Math.random() * 512, gy = Math.random() * 512;
+        gctx.fillRect(gx, gy, 1 + Math.random()*2, 3 + Math.random()*5);
+    }
+    const groundTex = new THREE.CanvasTexture(groundCanvas);
+    groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+    groundTex.repeat.set(4, 3);
+    const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // ── Arena border ring (subtle) ──
+    const ringGeo = new THREE.RingGeometry(14, 14.3, 64);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
+    scene.add(ring);
+
+    // ── Decorations: trees ──
+    function makeTree(x, z) {
+        const g = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.8, 6),
+            new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.9 }));
+        trunk.position.y = 0.9; trunk.castShadow = true;
+        g.add(trunk);
+        const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6),
+            new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.8 }));
+        leaves.position.y = 2.2; leaves.castShadow = true;
+        g.add(leaves);
+        g.position.set(x, 0, z);
+        scene.add(g);
+        return g;
+    }
+    const trees = [];
+    [[-18,8],[-16,-6],[18,6],[20,-8],[-14,12],[15,-12],[22,2],[-20,-2]].forEach(p => trees.push(makeTree(p[0],p[1])));
+
+    // ── Rocks ──
+    function makeRock(x, z, s) {
+        const rock = new THREE.Mesh(
+            new THREE.DodecahedronGeometry(s, 0),
+            new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.85, flatShading: true })
+        );
+        rock.position.set(x, s * 0.4, z);
+        rock.rotation.set(Math.random(), Math.random(), 0);
+        rock.castShadow = true;
+        scene.add(rock);
+    }
+    [[-12,4,0.5],[13,-5,0.7],[-8,-9,0.4],[10,8,0.3],[16,10,0.6]].forEach(r => makeRock(r[0],r[1],r[2]));
+
+    // ── Floating Particles ──
+    const partGeo = new THREE.BufferGeometry();
+    const partCount = 80;
+    const partPos = new Float32Array(partCount * 3);
+    for (let i = 0; i < partCount; i++) {
+        partPos[i*3] = (Math.random()-0.5)*40;
+        partPos[i*3+1] = 1 + Math.random()*8;
+        partPos[i*3+2] = (Math.random()-0.5)*30;
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+    const partMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.08, transparent: true, opacity: 0.5 });
+    const particles = new THREE.Points(partGeo, partMat);
+    scene.add(particles);
+
+    /* ═══════════════════════════════════════════
+       3D CHARACTER BUILDER
+    ═══════════════════════════════════════════ */
+    function createCharacter(color) {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.1 });
+        const matLight = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).lerp(new THREE.Color(0xffffff), 0.3), roughness: 0.4 });
+
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 16, 12), matLight);
+        head.position.y = 2.6; head.castShadow = true;
+        group.add(head);
+        // Eyes
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat);
+        eyeL.position.set(-0.14, 2.66, 0.36); group.add(eyeL);
+        const eyeR = eyeL.clone(); eyeR.position.x = 0.14; group.add(eyeR);
+        // Mouth
+        const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 12, Math.PI),
+            new THREE.MeshBasicMaterial({ color: 0x333333 }));
+        mouth.position.set(0, 2.52, 0.36); mouth.rotation.x = Math.PI; group.add(mouth);
+
+        // Body (torso)
+        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 1.2, 8), mat);
+        body.position.y = 1.7; body.castShadow = true;
+        group.add(body);
+
+        // Arms
+        const armGeo = new THREE.CylinderGeometry(0.09, 0.08, 0.8, 6);
+        const armL = new THREE.Mesh(armGeo, mat);
+        armL.position.set(-0.45, 1.9, 0); armL.rotation.z = 0.3; armL.castShadow = true;
+        group.add(armL);
+        const armR = new THREE.Mesh(armGeo, mat);
+        armR.position.set(0.45, 1.9, 0); armR.rotation.z = -0.3; armR.castShadow = true;
+        group.add(armR);
+
+        // Legs
+        const legGeo = new THREE.CylinderGeometry(0.1, 0.09, 0.9, 6);
+        const legL = new THREE.Mesh(legGeo, mat);
+        legL.position.set(-0.15, 0.55, 0); legL.castShadow = true;
+        group.add(legL);
+        const legR = new THREE.Mesh(legGeo, mat);
+        legR.position.set(0.15, 0.55, 0); legR.castShadow = true;
+        group.add(legR);
+
+        // Weapon holder (will swap mesh)
+        const weaponGroup = new THREE.Group();
+        weaponGroup.position.set(0.6, 2.0, 0.3);
+        group.add(weaponGroup);
+
+        group.userData = { head, body, armL, armR, legL, legR, weaponGroup, mat, matLight, baseColor: color };
+        group.castShadow = true;
+        return group;
+    }
+
+    function makeWeaponMesh(weaponIndex) {
+        const wd = weaponData[weaponIndex];
+        const g = new THREE.Group();
+        const c = wd.color;
+        const mat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.3, metalness: 0.5 });
+        switch (weaponIndex) {
+            case 0: // fist - no mesh
+                break;
+            case 1: // sword
+                g.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.0, 0.04), mat));
+                const guard = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.06), mat);
+                guard.position.y = -0.45; g.add(guard);
+                break;
+            case 2: { // hammer
+                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), mat);
+                g.add(handle);
+                const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.2, 0.2), mat);
+                hamHead.position.y = 0.4; g.add(hamHead);
+                break;
             }
-            
-            document.getElementById('playerInfo').textContent = `我方 (P${myPlayerNum})`;
-            document.getElementById('opponentInfo').textContent = `对手: ${data.opponentName}`;
-            
-            gameLoop();
-        });
-
-        socket.on('opponentAction', (action) => {
-            if (action.type === 'move') {
-                remotePlayer.x = action.x;
-                remotePlayer.velocity.x = action.velocityX;
-                remotePlayer.facingRight = action.facingRight;
-            } else if (action.type === 'attack') {
-                remotePlayer.attacking = true;
-                remotePlayer.facingRight = action.facingRight;
-                setTimeout(() => { remotePlayer.attacking = false; }, 300);
-            } else if (action.type === 'dodge') {
-                remotePlayer.dodging = true;
-                remotePlayer.velocity.x = action.velocityX;
-                setTimeout(() => { remotePlayer.dodging = false; }, 400);
-            } else if (action.type === 'weapon') {
-                remotePlayer.weapon = action.weapon;
-            } else if (action.type === 'hit') {
-                localPlayer.health = Math.max(0, localPlayer.health - action.damage);
-                localPlayer.hurt = true;
-                updateHealthBar('player');
-                setTimeout(() => { localPlayer.hurt = false; }, 300);
-                if (localPlayer.health <= 0) {
-                    endGame(false);
+            case 3: { // bow
+                const bow = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 8, 16, Math.PI), mat);
+                g.add(bow);
+                break;
+            }
+            case 4: { // trident
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat);
+                g.add(shaft);
+                for (let dx of [-0.1, 0, 0.1]) {
+                    const prong = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 6), mat);
+                    prong.position.set(dx, 0.7, 0); g.add(prong);
                 }
+                break;
             }
-        });
-
-        socket.on('opponentLeft', (data) => {
-            opponentLeft = true;
-            alert(data.message);
-            location.reload();
-        });
-
-        socket.on('syncState', (state) => {
-            if (state.opponent) {
-                remotePlayer.x = state.opponent.x;
-                remotePlayer.health = state.opponent.health;
-                remotePlayer.weapon = state.opponent.weapon;
-                remotePlayer.attacking = state.opponent.attacking;
-                remotePlayer.dodging = state.opponent.dodging;
-                remotePlayer.hurt = state.opponent.hurt;
-                updateHealthBar('opponent');
-            }
-        });
-
-        // Join game
-        function joinGame() {
-            const name = document.getElementById('playerName').value.trim() || '匿名玩家';
-            document.getElementById('status').textContent = '正在连接...';
-            socket.emit('joinGame', name);
-        }
-
-        // Input handling
-        const keys = { left: false, right: false, up: false, down: false };
-        const joystick = { active: false, x: 0, y: 0 };
-
-        document.addEventListener('keydown', (e) => {
-            if (!gameStarted) return;
-            switch(e.key) {
-                case 'ArrowLeft': case 'a': case 'A': keys.left = true; break;
-                case 'ArrowRight': case 'd': case 'D': keys.right = true; break;
-                case ' ': case 'j': case 'J':
-                    e.preventDefault();
-                    if (!localPlayer.attacking) attack();
-                    break;
-                case 'Shift': case 'k': case 'K':
-                    e.preventDefault();
-                    dodge();
-                    break;
-                case 'e': case 'E':
-                    e.preventDefault();
-                    changeWeapon();
-                    break;
-            }
-        });
-
-        document.addEventListener('keyup', (e) => {
-            switch(e.key) {
-                case 'ArrowLeft': case 'a': case 'A': keys.left = false; break;
-                case 'ArrowRight': case 'd': case 'D': keys.right = false; break;
-            }
-        });
-
-        // Joystick controls
-        const joystickContainer = document.getElementById('joystick');
-        const stick = document.getElementById('stick');
-        let joystickCenter = { x: 0, y: 0 };
-        const maxDistance = 35;
-
-        function updateJoystickCenter() {
-            const rect = joystickContainer.querySelector('.joystick-base').getBoundingClientRect();
-            joystickCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-        }
-
-        joystickContainer.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            joystick.active = true;
-            updateJoystickCenter();
-            handleJoystickMove(e);
-        });
-        joystickContainer.addEventListener('touchmove', handleJoystickMove);
-        joystickContainer.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            joystick.active = false;
-            joystick.x = 0;
-            joystick.y = 0;
-            stick.style.transform = 'translate(-50%, -50%)';
-        });
-
-        function handleJoystickMove(e) {
-            if (!joystick.active) return;
-            const touch = e.touches[0];
-            let deltaX = touch.clientX - joystickCenter.x;
-            let deltaY = touch.clientY - joystickCenter.y;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            if (distance > maxDistance) {
-                deltaX = (deltaX / distance) * maxDistance;
-                deltaY = (deltaY / distance) * maxDistance;
-            }
-            stick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
-            joystick.x = deltaX / maxDistance;
-            joystick.y = deltaY / maxDistance;
-        }
-
-        // Action buttons
-        document.getElementById('attackBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!localPlayer.attacking) attack();
-        });
-        document.getElementById('dodgeBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            dodge();
-        });
-        document.getElementById('weaponBtn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            changeWeapon();
-        });
-
-        // Game actions
-        function attack() {
-            if (!localPlayer.attacking && gameStarted && !opponentLeft) {
-                localPlayer.attacking = true;
-                
-                // Send attack action to server
-                socket.emit('gameAction', {
-                    roomId,
-                    action: { type: 'attack', facingRight: localPlayer.facingRight }
-                });
-
-                // Check hit (simplified - in real game would be server-authoritative)
-                const weapon = weaponData[localPlayer.weapon];
-                const distance = Math.abs(localPlayer.x - remotePlayer.x);
-                
-                if (distance < 150) {
-                    // Notify server of hit
-                    socket.emit('gameAction', {
-                        roomId,
-                        action: { type: 'hit', damage: weapon.power }
-                    });
-                }
-
-                setTimeout(() => { localPlayer.attacking = false; }, 300);
+            default: { // magical weapons (5-8): glowing orb on staff
+                const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6),
+                    new THREE.MeshStandardMaterial({ color: 0x5d4037, roughness: 0.8 }));
+                g.add(staff);
+                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8),
+                    new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.8, roughness: 0.1 }));
+                orb.position.y = 0.6; g.add(orb);
+                const glow = new THREE.PointLight(c, 1, 4);
+                glow.position.y = 0.6; g.add(glow);
+                break;
             }
         }
+        return g;
+    }
 
-        function dodge() {
-            if (!localPlayer.dodging && gameStarted && !opponentLeft) {
-                localPlayer.dodging = true;
-                localPlayer.velocity.x = localPlayer.facingRight ? -15 : 15;
-                
-                socket.emit('gameAction', {
-                    roomId,
-                    action: { type: 'dodge', velocityX: localPlayer.velocity.x }
-                });
+    let char1, char2;
+    function initCharacters() {
+        const c1Color = myPlayerNum === 1 ? 0x43A047 : 0x1E88E5;
+        char1 = createCharacter(c1Color);
+        scene.add(char1);
+        char2 = createCharacter(0xE53935);
+        scene.add(char2);
+        updateWeaponMesh(char1, 0);
+        updateWeaponMesh(char2, 0);
+    }
 
-                setTimeout(() => { localPlayer.dodging = false; }, 400);
-            }
-        }
+    function updateWeaponMesh(char, weaponIndex) {
+        const wg = char.userData.weaponGroup;
+        while (wg.children.length) wg.remove(wg.children[0]);
+        const mesh = makeWeaponMesh(weaponIndex);
+        wg.add(mesh);
+    }
 
-        function changeWeapon() {
-            if (gameStarted && !opponentLeft) {
-                localPlayer.weapon = (localPlayer.weapon + 1) % weapons.length;
-                
-                socket.emit('gameAction', {
-                    roomId,
-                    action: { type: 'weapon', weapon: localPlayer.weapon }
-                });
+    /* ═══════════════════════════════════════════
+       EFFECTS
+    ═══════════════════════════════════════════ */
+    const effects = [];
 
-                updateWeaponInfo();
-            }
-        }
+    function spawnHitEffect(pos) {
+        // Ring
+        const ring = new THREE.Mesh(
+            new THREE.RingGeometry(0.1, 0.3, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 1, side: THREE.DoubleSide })
+        );
+        ring.position.copy(pos); ring.position.y = 1.5;
+        ring.rotation.x = -Math.PI / 2;
+        scene.add(ring);
+        effects.push({ mesh: ring, type: 'ring', life: 0, maxLife: 0.5 });
 
-        function updateWeaponInfo() {
-            const weapon = weaponData[localPlayer.weapon];
-            document.getElementById('weaponIcon').textContent = weapon.icon;
-            document.getElementById('weaponName').textContent = weapon.name;
-            document.getElementById('weaponPower').textContent = weapon.power;
-            document.getElementById('weaponInfo').classList.add('show');
-            setTimeout(() => { document.getElementById('weaponInfo').classList.remove('show'); }, 2500);
-        }
-
-        function updateHealthBar(who) {
-            const target = who === 'player' ? localPlayer : remotePlayer;
-            const bar = document.querySelector(`#${who}Health .health-bar-inner`);
-            const valueDisplay = document.querySelector(`#${who}Health .health-value`);
-            const percentage = (target.health / target.maxHealth) * 100;
-            bar.style.width = percentage + '%';
-            valueDisplay.textContent = `${Math.round(target.health)}/${target.maxHealth}`;
-        }
-
-        // Update local player
-        function updateLocalPlayer() {
-            if (!gameStarted || opponentLeft) return;
-
-            // Movement
-            if (keys.left) {
-                localPlayer.velocity.x = -5;
-                localPlayer.facingRight = false;
-            } else if (keys.right) {
-                localPlayer.velocity.x = 5;
-                localPlayer.facingRight = true;
-            }
-            
-            if (joystick.active) {
-                localPlayer.velocity.x = joystick.x * 5;
-                if (joystick.x > 0.2) localPlayer.facingRight = true;
-                if (joystick.x < -0.2) localPlayer.facingRight = false;
-            }
-            
-            if (!keys.left && !keys.right && !joystick.active) {
-                localPlayer.velocity.x *= 0.8;
-            }
-
-            localPlayer.x += localPlayer.velocity.x;
-            localPlayer.velocity.x *= 0.9;
-            
-            // Boundaries
-            localPlayer.x = Math.max(50, Math.min(canvas.width - 50, localPlayer.x));
-
-            // Send position to server
-            socket.emit('gameAction', {
-                roomId,
-                action: {
-                    type: 'move',
-                    x: localPlayer.x,
-                    velocityX: localPlayer.velocity.x,
-                    facingRight: localPlayer.facingRight
-                }
-            });
-        }
-
-        // Draw functions (simplified from original)
-        function drawPlayer(x, y, scale, color, facingRight, attacking, weapon, isDodging, isHurt) {
-            ctx.save();
-            ctx.translate(x, y);
-            if (!facingRight) ctx.scale(-1, 1);
-            
-            const dodgeOffset = isDodging ? 20 : 0;
-            
-            // Shadow
-            ctx.fillStyle = 'rgba(0,0,0,0.15)';
-            ctx.beginPath();
-            ctx.ellipse(0, 80 + dodgeOffset, 35 * scale, 12 * scale, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Body
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 12 * scale;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(0, -30);
-            ctx.lineTo(0, 20 + dodgeOffset);
-            ctx.stroke();
-
-            // Arms
-            if (attacking) {
-                ctx.lineWidth = 7 * scale;
-                ctx.beginPath();
-                ctx.moveTo(0, -20);
-                ctx.lineTo(25, -15);
-                ctx.lineTo(45, -10);
-                ctx.stroke();
-                
-                ctx.font = `${30 * scale}px Arial`;
-                ctx.fillText(weapon || '👊', 40, -10);
-            } else {
-                ctx.lineWidth = 7 * scale;
-                ctx.beginPath();
-                ctx.moveTo(0, -20);
-                ctx.lineTo(20, 0);
-                ctx.lineTo(25, 15);
-                ctx.stroke();
-                
-                if (weapon) {
-                    ctx.font = `${25 * scale}px Arial`;
-                    ctx.fillText(weapon, 20, 10);
-                }
-            }
-
-            // Legs
-            ctx.lineWidth = 8 * scale;
-            ctx.beginPath();
-            ctx.moveTo(0, 20 + dodgeOffset);
-            ctx.lineTo(-10, 45 + dodgeOffset);
-            ctx.lineTo(-5, 75 + dodgeOffset);
-            ctx.moveTo(0, 20 + dodgeOffset);
-            ctx.lineTo(10, 45 + dodgeOffset);
-            ctx.lineTo(5, 75 + dodgeOffset);
-            ctx.stroke();
-
-            // Head
-            const headGradient = ctx.createRadialGradient(-8, -58, 5, 0, -50, 20 * scale);
-            headGradient.addColorStop(0, '#90CAF9');
-            headGradient.addColorStop(1, color);
-            ctx.fillStyle = headGradient;
-            ctx.beginPath();
-            ctx.arc(0, -50, 18 * scale, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Face
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(-6, -52, 2 * scale, 0, Math.PI * 2);
-            ctx.arc(6, -52, 2 * scale, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, -45, 8 * scale, 0.2, Math.PI - 0.2);
-            ctx.stroke();
-
-            ctx.restore();
-        }
-
-        function drawBackground() {
-            // Sky
-            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.6);
-            skyGradient.addColorStop(0, '#87CEEB');
-            skyGradient.addColorStop(1, '#98D8C8');
-            ctx.fillStyle = skyGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.6);
-
-            // Ground
-            const groundGradient = ctx.createLinearGradient(0, canvas.height * 0.6, 0, canvas.height);
-            groundGradient.addColorStop(0, '#A8E6A1');
-            groundGradient.addColorStop(1, '#6BB86B');
-            ctx.fillStyle = groundGradient;
-            ctx.fillRect(0, canvas.height * 0.6, canvas.width, canvas.height * 0.4);
-        }
-
-        // Game loop
-        function gameLoop() {
-            if (!gameStarted) return;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBackground();
-            updateLocalPlayer();
-            
-            // Draw remote player (opponent)
-            drawPlayer(
-                remotePlayer.x, remotePlayer.y, 1, '#E53935',
-                remotePlayer.facingRight, remotePlayer.attacking,
-                weapons[remotePlayer.weapon], remotePlayer.dodging, remotePlayer.hurt
+        // Sparks
+        for (let i = 0; i < 10; i++) {
+            const spark = new THREE.Mesh(
+                new THREE.SphereGeometry(0.04, 6, 4),
+                new THREE.MeshBasicMaterial({ color: 0xffeb3b })
             );
-            
-            // Draw local player (us)
-            const myColor = myPlayerNum === 1 ? '#43A047' : '#1E88E5';
-            drawPlayer(
-                localPlayer.x, localPlayer.y, 1, myColor,
-                localPlayer.facingRight, localPlayer.attacking,
-                weapons[localPlayer.weapon], localPlayer.dodging, localPlayer.hurt
-            );
-            
-            requestAnimationFrame(gameLoop);
+            spark.position.copy(pos);
+            spark.position.y = 1.5;
+            const vel = new THREE.Vector3((Math.random()-0.5)*8, Math.random()*6, (Math.random()-0.5)*8);
+            scene.add(spark);
+            effects.push({ mesh: spark, type: 'spark', vel, life: 0, maxLife: 0.4 + Math.random()*0.3 });
         }
+    }
 
-        function endGame(iWon) {
-            gameStarted = false;
-            const gameOverScreen = document.getElementById('gameOverScreen');
-            const gameOverText = document.getElementById('gameOverText');
-            
-            if (iWon) {
-                gameOverText.textContent = '🎉 胜利！你赢了！';
-                gameOverText.style.color = '#4CAF50';
-            } else {
-                gameOverText.textContent = '😢 失败了！';
-                gameOverText.style.color = '#f44336';
+    function spawnSlashEffect(char, facingRight) {
+        const slash = new THREE.Mesh(
+            new THREE.TorusGeometry(0.8, 0.04, 8, 16, Math.PI * 0.8),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide })
+        );
+        slash.position.copy(char.position);
+        slash.position.y = 1.8;
+        slash.position.x += facingRight ? 0.8 : -0.8;
+        slash.rotation.y = facingRight ? 0 : Math.PI;
+        scene.add(slash);
+        effects.push({ mesh: slash, type: 'slash', life: 0, maxLife: 0.3 });
+    }
+
+    function updateEffects(dt) {
+        for (let i = effects.length - 1; i >= 0; i--) {
+            const e = effects[i];
+            e.life += dt;
+            const t = e.life / e.maxLife;
+            if (t >= 1) {
+                scene.remove(e.mesh);
+                if (e.mesh.geometry) e.mesh.geometry.dispose();
+                effects.splice(i, 1);
+                continue;
             }
-            
-            gameOverScreen.style.display = 'block';
+            if (e.type === 'ring') {
+                const s = 1 + t * 4;
+                e.mesh.scale.set(s, s, s);
+                e.mesh.material.opacity = 1 - t;
+            } else if (e.type === 'spark') {
+                e.mesh.position.add(e.vel.clone().multiplyScalar(dt));
+                e.vel.y -= 15 * dt;
+                e.mesh.material.opacity = 1 - t;
+            } else if (e.type === 'slash') {
+                e.mesh.material.opacity = 1 - t;
+                const s = 1 + t * 0.5;
+                e.mesh.scale.set(s, s, s);
+            }
+        }
+    }
+
+    function cameraShake(intensity) {
+        const orig = camera.position.clone();
+        let t = 0;
+        const shakeInterval = setInterval(() => {
+            t += 16;
+            if (t > 300) {
+                camera.position.copy(orig);
+                clearInterval(shakeInterval);
+                return;
+            }
+            camera.position.x = orig.x + (Math.random()-0.5) * intensity;
+            camera.position.y = orig.y + (Math.random()-0.5) * intensity * 0.5;
+        }, 16);
+    }
+
+    function showDamagePopup(damage, screenX, screenY) {
+        const popup = document.createElement('div');
+        popup.className = 'dmg-popup';
+        popup.textContent = `-${damage}`;
+        popup.style.left = screenX + 'px';
+        popup.style.top = screenY + 'px';
+        document.body.appendChild(popup);
+        setTimeout(() => popup.remove(), 800);
+    }
+
+    /* ═══════════════════════════════════════════
+       ANIMATION HELPERS
+    ═══════════════════════════════════════════ */
+    function animateCharacter(char, state, time) {
+        const d = char.userData;
+        if (state.hurt) {
+            // Flash effect
+            const flash = Math.sin(time * 40) > 0;
+            d.body.material.emissive.setHex(flash ? 0xff0000 : 0x000000);
+            d.head.material.emissive.setHex(flash ? 0xff0000 : 0x000000);
+        } else {
+            d.body.material.emissive.setHex(0x000000);
+            d.head.material.emissive.setHex(0x000000);
         }
 
-        function restartGame() {
-            location.reload();
+        if (state.attacking) {
+            // Attack pose: arm swings forward
+            d.armR.rotation.z = -1.5;
+            d.armR.rotation.x = -0.5;
+            d.armR.position.z = 0.3;
+            d.weaponGroup.position.set(0.7, 2.2, 0.6);
+        } else if (state.dodging) {
+            // Dodge lean
+            char.rotation.z = state.facingRight ? -0.4 : 0.4;
+        } else {
+            // Idle / walk
+            const isMoving = Math.abs(state.vx) > 0.3;
+            const bob = Math.sin(time * (isMoving ? 12 : 3)) * (isMoving ? 0.08 : 0.03);
+            d.head.position.y = 2.6 + bob;
+            d.body.position.y = 1.7 + bob * 0.5;
+
+            const legSwing = Math.sin(time * (isMoving ? 10 : 2)) * (isMoving ? 0.5 : 0.08);
+            d.legL.rotation.x = legSwing;
+            d.legR.rotation.x = -legSwing;
+
+            const armSwing = Math.sin(time * (isMoving ? 10 : 2.5)) * (isMoving ? 0.4 : 0.1);
+            d.armL.rotation.x = -armSwing;
+            d.armR.rotation.x = armSwing;
+            d.armR.rotation.z = -0.3;
+            d.armR.position.z = 0;
+            d.weaponGroup.position.set(0.6, 2.0, 0.3);
+            char.rotation.z = 0;
         }
+
+        // Face direction
+        char.rotation.y = state.facingRight ? 0 : Math.PI;
+    }
+
+    /* ═══════════════════════════════════════════
+       SOCKET EVENTS
+    ═══════════════════════════════════════════ */
+    socket.on('connect', () => { document.getElementById('connStatus').textContent = '🟢 已连接'; });
+    socket.on('disconnect', () => { document.getElementById('connStatus').textContent = '🔴 断开连接'; });
+
+    socket.on('waiting', () => {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('waitingScreen').style.display = 'flex';
+    });
+
+    socket.on('gameStart', (data) => {
+        roomId = data.roomId;
+        myPlayerNum = data.playerNum;
+        gameStarted = true;
+
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('waitingScreen').style.display = 'none';
+        document.getElementById('uiOverlay').style.display = 'block';
+
+        if (myPlayerNum === 1) {
+            localPlayer.x = -5; remotePlayer.x = 5;
+            localPlayer.facingRight = true; remotePlayer.facingRight = false;
+        } else {
+            localPlayer.x = 5; remotePlayer.x = -5;
+            localPlayer.facingRight = false; remotePlayer.facingRight = true;
+        }
+
+        document.getElementById('playerInfo').textContent = `我方 (P${myPlayerNum})`;
+        document.getElementById('opponentInfo').textContent = `对手: ${data.opponentName}`;
+
+        initCharacters();
+        animate();
+    });
+
+    socket.on('opponentAction', (action) => {
+        if (action.type === 'move') {
+            remotePlayer.x = action.x;
+            remotePlayer.vx = action.vx;
+            remotePlayer.facingRight = action.facingRight;
+        } else if (action.type === 'attack') {
+            remotePlayer.attacking = true;
+            remotePlayer.facingRight = action.facingRight;
+            if (char2) spawnSlashEffect(char2, action.facingRight);
+            setTimeout(() => { remotePlayer.attacking = false; }, 300);
+        } else if (action.type === 'dodge') {
+            remotePlayer.dodging = true;
+            remotePlayer.vx = action.vx;
+            setTimeout(() => { remotePlayer.dodging = false; }, 400);
+        } else if (action.type === 'weapon') {
+            remotePlayer.weapon = action.weapon;
+            if (char2) updateWeaponMesh(char2, action.weapon);
+        } else if (action.type === 'hit') {
+            localPlayer.health = Math.max(0, localPlayer.health - action.damage);
+            localPlayer.hurt = true;
+            updateHealthUI('player');
+            if (char1) {
+                spawnHitEffect(char1.position);
+                cameraShake(0.3);
+                // Project 3D pos to screen for popup
+                const v = char1.position.clone().project(camera);
+                const sx = (v.x * 0.5 + 0.5) * window.innerWidth;
+                const sy = (-v.y * 0.5 + 0.5) * window.innerHeight;
+                showDamagePopup(action.damage, sx, sy);
+            }
+            setTimeout(() => { localPlayer.hurt = false; }, 300);
+            if (localPlayer.health <= 0) endGame(false);
+        }
+    });
+
+    socket.on('opponentLeft', (data) => {
+        opponentLeft = true;
+        alert(data.message);
+        location.reload();
+    });
+
+    /* ═══════════════════════════════════════════
+       UI FUNCTIONS
+    ═══════════════════════════════════════════ */
+    function updateHealthUI(who) {
+        const p = who === 'player' ? localPlayer : remotePlayer;
+        const pct = (p.health / p.maxHealth) * 100;
+        document.getElementById(who === 'player' ? 'playerFill' : 'opponentFill').style.width = pct + '%';
+        document.getElementById(who === 'player' ? 'playerHpText' : 'opponentHpText').textContent = `${Math.round(p.health)}/${p.maxHealth}`;
+    }
+
+    function showWeaponToast() {
+        const w = weaponData[localPlayer.weapon];
+        document.getElementById('wIcon').textContent = w.icon;
+        document.getElementById('wName').textContent = w.name;
+        document.getElementById('wPow').textContent = w.power;
+        const toast = document.getElementById('weaponToast');
+        toast.classList.add('show');
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    /* ═══════════════════════════════════════════
+       INPUT
+    ═══════════════════════════════════════════ */
+    const keys = { left: false, right: false };
+    const joystickState = { active: false, x: 0 };
+
+    document.addEventListener('keydown', (e) => {
+        if (!gameStarted) return;
+        switch(e.key) {
+            case 'ArrowLeft': case 'a': case 'A': keys.left = true; break;
+            case 'ArrowRight': case 'd': case 'D': keys.right = true; break;
+            case ' ': case 'j': case 'J': e.preventDefault(); doAttack(); break;
+            case 'Shift': case 'k': case 'K': e.preventDefault(); doDodge(); break;
+            case 'e': case 'E': e.preventDefault(); doWeaponSwitch(); break;
+        }
+    });
+    document.addEventListener('keyup', (e) => {
+        switch(e.key) {
+            case 'ArrowLeft': case 'a': case 'A': keys.left = false; break;
+            case 'ArrowRight': case 'd': case 'D': keys.right = false; break;
+        }
+    });
+
+    // Joystick
+    const joyZone = document.getElementById('joystickZone');
+    const joyKnob = document.getElementById('joyKnob');
+    let joyCenter = { x: 0, y: 0 };
+    const joyMax = 38;
+
+    joyZone.addEventListener('touchstart', (e) => { e.preventDefault(); joystickState.active = true;
+        const r = joyZone.querySelector('.joy-base').getBoundingClientRect();
+        joyCenter = { x: r.left + r.width/2, y: r.top + r.height/2 }; handleJoy(e);
+    });
+    joyZone.addEventListener('touchmove', (e) => { e.preventDefault(); handleJoy(e); });
+    joyZone.addEventListener('touchend', (e) => { e.preventDefault(); joystickState.active = false; joystickState.x = 0;
+        joyKnob.style.transform = 'translate(-50%,-50%)'; });
+
+    function handleJoy(e) {
+        if (!joystickState.active) return;
+        let dx = e.touches[0].clientX - joyCenter.x;
+        let dy = e.touches[0].clientY - joyCenter.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > joyMax) { dx = dx/dist*joyMax; dy = dy/dist*joyMax; }
+        joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        joystickState.x = dx / joyMax;
+    }
+
+    // Touch buttons
+    document.getElementById('attackBtn').addEventListener('touchstart', (e) => { e.preventDefault(); doAttack(); });
+    document.getElementById('dodgeBtn').addEventListener('touchstart', (e) => { e.preventDefault(); doDodge(); });
+    document.getElementById('weaponBtn').addEventListener('touchstart', (e) => { e.preventDefault(); doWeaponSwitch(); });
+
+    /* ═══════════════════════════════════════════
+       GAME ACTIONS
+    ═══════════════════════════════════════════ */
+    function doAttack() {
+        if (!localPlayer.attacking && gameStarted && !opponentLeft) {
+            localPlayer.attacking = true;
+            socket.emit('gameAction', { roomId, action: { type: 'attack', facingRight: localPlayer.facingRight } });
+            if (char1) spawnSlashEffect(char1, localPlayer.facingRight);
+            const dist = Math.abs(localPlayer.x - remotePlayer.x);
+            if (dist < 3.5) {
+                const dmg = weaponData[localPlayer.weapon].power;
+                socket.emit('gameAction', { roomId, action: { type: 'hit', damage: dmg } });
+                if (char2) { spawnHitEffect(char2.position); cameraShake(0.15); }
+                remotePlayer.health = Math.max(0, remotePlayer.health - dmg);
+                remotePlayer.hurt = true;
+                updateHealthUI('opponent');
+                setTimeout(() => { remotePlayer.hurt = false; }, 300);
+                if (remotePlayer.health <= 0) endGame(true);
+            }
+            setTimeout(() => { localPlayer.attacking = false; }, 300);
+        }
+    }
+
+    function doDodge() {
+        if (!localPlayer.dodging && gameStarted && !opponentLeft) {
+            localPlayer.dodging = true;
+            localPlayer.vx = localPlayer.facingRight ? -3 : 3;
+            socket.emit('gameAction', { roomId, action: { type: 'dodge', vx: localPlayer.vx } });
+            setTimeout(() => { localPlayer.dodging = false; }, 400);
+        }
+    }
+
+    function doWeaponSwitch() {
+        if (gameStarted && !opponentLeft) {
+            localPlayer.weapon = (localPlayer.weapon + 1) % weaponData.length;
+            socket.emit('gameAction', { roomId, action: { type: 'weapon', weapon: localPlayer.weapon } });
+            if (char1) updateWeaponMesh(char1, localPlayer.weapon);
+            showWeaponToast();
+        }
+    }
+
+    /* ═══════════════════════════════════════════
+       GAME LOOP
+    ═══════════════════════════════════════════ */
+    const clock = new THREE.Clock();
+
+    function updateLocalPlayer() {
+        if (!gameStarted || opponentLeft) return;
+        if (keys.left) { localPlayer.vx = -0.12; localPlayer.facingRight = false; }
+        else if (keys.right) { localPlayer.vx = 0.12; localPlayer.facingRight = true; }
+        if (joystickState.active) {
+            localPlayer.vx = joystickState.x * 0.12;
+            if (joystickState.x > 0.2) localPlayer.facingRight = true;
+            if (joystickState.x < -0.2) localPlayer.facingRight = false;
+        }
+        if (!keys.left && !keys.right && !joystickState.active) localPlayer.vx *= 0.85;
+
+        localPlayer.x += localPlayer.vx;
+        localPlayer.vx *= 0.92;
+        localPlayer.x = Math.max(-13, Math.min(13, localPlayer.x));
+
+        socket.emit('gameAction', { roomId, action: { type: 'move', x: localPlayer.x, vx: localPlayer.vx, facingRight: localPlayer.facingRight } });
+    }
+
+    function animate() {
+        if (!gameStarted) return;
+        requestAnimationFrame(animate);
+
+        const dt = clock.getDelta();
+        const time = clock.getElapsedTime();
+
+        updateLocalPlayer();
+
+        // Sync 3D positions
+        if (char1) {
+            char1.position.x = localPlayer.x;
+            char1.position.z = 0;
+            animateCharacter(char1, localPlayer, time);
+        }
+        if (char2) {
+            char2.position.x = remotePlayer.x;
+            char2.position.z = 0;
+            animateCharacter(char2, remotePlayer, time);
+        }
+
+        // Animate particles
+        const pAttr = particles.geometry.attributes.position;
+        for (let i = 0; i < partCount; i++) {
+            pAttr.array[i*3+1] += Math.sin(time + i) * 0.003;
+        }
+        pAttr.needsUpdate = true;
+
+        updateEffects(dt);
+        renderer.render(scene, camera);
+    }
+
+    function endGame(iWon) {
+        gameStarted = false;
+        const screen = document.getElementById('gameOverScreen');
+        const text = document.getElementById('gameOverText');
+        text.textContent = iWon ? '🎉 胜利！' : '😢 失败了！';
+        text.style.color = iWon ? '#51cf66' : '#ff6b6b';
+        screen.classList.add('show');
+    }
+
+    // Join button
+    document.getElementById('joinBtn').addEventListener('click', () => {
+        const name = document.getElementById('playerName').value.trim() || '匿名玩家';
+        document.getElementById('status').textContent = '正在连接...';
+        socket.emit('joinGame', name);
+    });
+    document.getElementById('playerName').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('joinBtn').click();
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
     </script>
 </body>
 </html>
