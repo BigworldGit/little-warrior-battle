@@ -106,14 +106,32 @@
 
         /* Weapon Info */
         .weapon-toast {
-            position: absolute; top: 80px; right: 20px;
-            padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-            opacity: 0; transform: translateX(60px); transition: all 0.4s cubic-bezier(.4,0,.2,1);
+            position: absolute; top: 76px; right: 20px; min-width: 300px;
+            padding: 16px 18px; display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 14px;
+            opacity: 0; transform: translateX(60px) scale(0.94); transition: all 0.4s cubic-bezier(.4,0,.2,1);
+            box-shadow: 0 18px 55px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.18);
         }
-        .weapon-toast.show { opacity: 1; transform: translateX(0); }
-        .weapon-emoji { font-size: 36px; }
-        .weapon-detail .w-name { font-size: 16px; font-weight: 700; }
-        .weapon-detail .w-power { font-size: 13px; color: #ff6b6b; font-weight: 600; }
+        .weapon-toast.show { opacity: 1; transform: translateX(0) scale(1); }
+        .weapon-toast::before {
+            content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+            background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 40%, rgba(255,210,0,0.12));
+        }
+        .weapon-emoji {
+            width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;
+            font-size: 42px; border-radius: 16px; background: rgba(0,0,0,0.18);
+            box-shadow: inset 0 0 24px rgba(255,255,255,0.1), 0 10px 24px rgba(0,0,0,0.2);
+        }
+        .weapon-detail { position: relative; z-index: 1; }
+        .weapon-detail .w-label { font-size: 11px; letter-spacing: 2px; font-weight: 900; color: rgba(255,255,255,0.52); }
+        .weapon-detail .w-name { font-size: 24px; line-height: 1.05; font-weight: 900; text-shadow: 0 4px 18px rgba(0,0,0,0.35); }
+        .weapon-detail .w-desc { margin-top: 5px; font-size: 12px; color: rgba(255,255,255,0.66); }
+        .weapon-stats { display: flex; gap: 8px; margin-top: 10px; }
+        .weapon-stat {
+            padding: 5px 8px; border-radius: 999px; font-size: 12px; font-weight: 900;
+            background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.14);
+        }
+        .weapon-stat.power { color: #ffd166; }
+        .weapon-stat.range { color: #90caf9; }
 
         /* Joystick */
         .joystick-zone {
@@ -134,12 +152,24 @@
         /* Action Buttons */
         .action-zone { position: absolute; bottom: 30px; right: 30px; pointer-events: auto; }
         .act-btn {
-            width: 64px; height: 64px; border-radius: 50%; display: flex;
+            width: 64px; height: 64px; border-radius: 50%; display: flex; position: relative;
             align-items: center; justify-content: center; font-size: 26px;
             margin: 8px; cursor: pointer; user-select: none; transition: all 0.15s;
             background: rgba(255,255,255,0.06); border: 2px solid rgba(255,255,255,0.15);
         }
         .act-btn:active { transform: scale(0.88); background: rgba(255,255,255,0.15); }
+        .key-hint {
+            display: none; position: absolute; right: -4px; bottom: -4px; min-width: 23px; height: 23px;
+            padding: 0 6px; border-radius: 999px; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 900; letter-spacing: 0.4px; color: #1a1a2e;
+            background: linear-gradient(135deg, #fff, #ffd166);
+            border: 1px solid rgba(255,255,255,0.65); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        }
+        @media (hover: hover) and (pointer: fine) {
+            .key-hint { display: flex; }
+            .joystick-zone { opacity: 0.32; }
+            .act-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.13); }
+        }
         .btn-row { display: flex; justify-content: center; gap: 8px; }
 
         /* Connection */
@@ -231,8 +261,13 @@
         <div class="weapon-toast glass" id="weaponToast">
             <div class="weapon-emoji" id="wIcon">👊</div>
             <div class="weapon-detail">
+                <div class="w-label">EQUIPPED</div>
                 <div class="w-name" id="wName">拳头</div>
-                <div class="w-power">ATK: <span id="wPow">10</span></div>
+                <div class="w-desc" id="wDesc">近身连击</div>
+                <div class="weapon-stats">
+                    <div class="weapon-stat power">ATK <span id="wPow">10</span></div>
+                    <div class="weapon-stat range">RANGE <span id="wRange">2.4</span></div>
+                </div>
             </div>
         </div>
 
@@ -241,10 +276,10 @@
         </div>
 
         <div class="action-zone">
-            <div class="btn-row"><div class="act-btn" id="weaponBtn">🔄</div></div>
+            <div class="btn-row"><div class="act-btn" id="weaponBtn">🔄<span class="key-hint">E</span></div></div>
             <div class="btn-row">
-                <div class="act-btn" id="attackBtn">⚔️</div>
-                <div class="act-btn" id="dodgeBtn">🏃</div>
+                <div class="act-btn" id="attackBtn">⚔️<span class="key-hint">J</span></div>
+                <div class="act-btn" id="dodgeBtn">🏃<span class="key-hint">K</span></div>
             </div>
         </div>
 
@@ -268,20 +303,20 @@
     let myPlayerNum = 0, roomId = null, gameStarted = false, opponentLeft = false;
 
     const localPlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
-        attacking: false, dodging: false, hurt: false, facingRight: true, vx: 0, vz: 0 };
+        attacking: false, attackStart: -1, dodging: false, hurt: false, facingRight: true, vx: 0, vz: 0 };
     const remotePlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
-        attacking: false, dodging: false, hurt: false, facingRight: false, vx: 0, vz: 0 };
+        attacking: false, attackStart: -1, dodging: false, hurt: false, facingRight: false, vx: 0, vz: 0 };
 
     const weaponData = [
-        { name: '勇气拳套', power: 10, icon: '👊', color: 0xffffff, accent: 0xffd166 },
-        { name: '星光宝剑', power: 15, icon: '⚔️', color: 0x90caf9, accent: 0xfff3b0 },
-        { name: '软糖战锤', power: 20, icon: '🔨', color: 0x8d6e63, accent: 0xff8fab },
-        { name: '藤蔓神弓', power: 25, icon: '🏹', color: 0xa5d6a7, accent: 0x6ee7b7 },
-        { name: '泡泡三叉戟', power: 30, icon: '🔱', color: 0x4dd0e1, accent: 0xb2f7ef },
-        { name: '雷电徽章', power: 35, icon: '⚡', color: 0xfff176, accent: 0x93c5fd },
-        { name: '暖阳火刃', power: 40, icon: '🔥', color: 0xff7043, accent: 0xffd166 },
-        { name: '雪花冰剑', power: 45, icon: '❄️', color: 0x80deea, accent: 0xc7f9ff },
-        { name: '星辰魔杖', power: 60, icon: '💫', color: 0xce93d8, accent: 0xf0abfc },
+        { name: '勇气拳套', power: 10, range: 2.5, icon: '👊', color: 0xffffff, accent: 0xffd166, desc: '贴身爆发连击', kind: 'melee' },
+        { name: '星光大剑', power: 15, range: 3.4, icon: '⚔️', color: 0x90caf9, accent: 0xfff3b0, desc: '宽刃横扫斩击', kind: 'melee' },
+        { name: '糖果巨锤', power: 20, range: 3.1, icon: '🔨', color: 0x8d6e63, accent: 0xff8fab, desc: '重击震荡冲击', kind: 'heavy' },
+        { name: '藤蔓战弓', power: 25, range: 7.2, icon: '🏹', color: 0xa5d6a7, accent: 0x6ee7b7, desc: '发射闪光箭矢', kind: 'bow' },
+        { name: '泡泡三叉戟', power: 30, range: 3.8, icon: '🔱', color: 0x4dd0e1, accent: 0xb2f7ef, desc: '长柄突刺波纹', kind: 'polearm' },
+        { name: '雷电徽章', power: 35, range: 4.4, icon: '⚡', color: 0xfff176, accent: 0x93c5fd, desc: '短距雷光爆裂', kind: 'magic' },
+        { name: '暖阳火刃', power: 40, range: 3.6, icon: '🔥', color: 0xff7043, accent: 0xffd166, desc: '火焰弧光斩击', kind: 'melee' },
+        { name: '雪花冰剑', power: 45, range: 3.6, icon: '❄️', color: 0x80deea, accent: 0xc7f9ff, desc: '冰晶突进斩击', kind: 'melee' },
+        { name: '星辰魔杖', power: 60, range: 5.2, icon: '💫', color: 0xce93d8, accent: 0xf0abfc, desc: '星光法术爆破', kind: 'magic' },
     ];
 
     /* ═══════════════════════════════════════════
@@ -638,6 +673,33 @@
         return group;
     }
 
+    function makeArrowMesh(color, accent, length = 1.15) {
+        const g = new THREE.Group();
+        const shaft = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.025, 0.025, length, 8),
+            new THREE.MeshStandardMaterial({ color: 0xf7e0a3, roughness: 0.52 })
+        );
+        shaft.rotation.z = Math.PI / 2;
+        g.add(shaft);
+        const tip = new THREE.Mesh(
+            new THREE.ConeGeometry(0.075, 0.18, 10),
+            new THREE.MeshStandardMaterial({ color, roughness: 0.25, metalness: 0.35, emissive: color, emissiveIntensity: 0.18 })
+        );
+        tip.rotation.z = -Math.PI / 2;
+        tip.position.x = length / 2 + 0.1;
+        g.add(tip);
+        const featherMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.45, emissive: accent, emissiveIntensity: 0.12, side: THREE.DoubleSide });
+        for (let i = 0; i < 3; i++) {
+            const feather = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), featherMat);
+            feather.position.x = -length / 2 - 0.04;
+            feather.rotation.x = (Math.PI * 2 / 3) * i;
+            feather.rotation.y = Math.PI / 2;
+            g.add(feather);
+        }
+        g.traverse(obj => { if (obj.isMesh) obj.castShadow = true; });
+        return g;
+    }
+
     function makeWeaponMesh(weaponIndex) {
         const wd = weaponData[weaponIndex];
         const g = new THREE.Group();
@@ -646,64 +708,81 @@
         const mat = new THREE.MeshStandardMaterial({ color: c, roughness: 0.28, metalness: 0.48, emissive: c, emissiveIntensity: weaponIndex > 4 ? 0.18 : 0.03 });
         const accentMat = new THREE.MeshStandardMaterial({ color: accent, roughness: 0.32, metalness: 0.24, emissive: accent, emissiveIntensity: 0.22 });
         const woodMat = new THREE.MeshStandardMaterial({ color: 0x7b4f2b, roughness: 0.78 });
+        const glowMat = new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
         switch (weaponIndex) {
             case 0: // fist - no mesh
-                g.add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8), accentMat));
+                g.add(new THREE.Mesh(new THREE.SphereGeometry(0.19, 14, 10), accentMat));
+                g.add(new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.025, 8, 24), glowMat));
                 break;
             case 1: // sword
-                g.add(new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.05, 0.04), mat));
-                const tip = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.22, 4), mat);
-                tip.position.y = 0.64; tip.rotation.y = Math.PI / 4; g.add(tip);
-                const guard = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.06), mat);
-                guard.position.y = -0.45; g.add(guard);
-                const gem = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), accentMat);
-                gem.position.y = -0.33; g.add(gem);
+                g.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.42, 0.07), mat));
+                const tip = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.32, 4), mat);
+                tip.position.y = 0.87; tip.rotation.y = Math.PI / 4; g.add(tip);
+                const guard = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.09, 0.1), accentMat);
+                guard.position.y = -0.62; g.add(guard);
+                const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.42, 10), woodMat);
+                grip.position.y = -0.9; g.add(grip);
+                const gem = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), accentMat);
+                gem.position.y = -0.55; g.add(gem);
                 break;
             case 2: { // hammer
-                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.85, 8), woodMat);
+                const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 1.18, 10), woodMat);
                 g.add(handle);
-                const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.28), mat);
-                hamHead.position.y = 0.4; g.add(hamHead);
-                const candy = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.025, 8, 24), accentMat);
-                candy.position.y = 0.4; candy.rotation.y = Math.PI / 2; g.add(candy);
+                const hamHead = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.42), mat);
+                hamHead.position.y = 0.58; g.add(hamHead);
+                const candy = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.035, 8, 28), accentMat);
+                candy.position.y = 0.58; candy.rotation.y = Math.PI / 2; g.add(candy);
                 break;
             }
             case 3: { // bow
-                const bow = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 8, 24, Math.PI), mat);
+                const bow = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.045, 12, 36, Math.PI), mat);
+                bow.scale.y = 1.18;
                 g.add(bow);
-                const string = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.7, 0.018), accentMat);
-                string.position.x = -0.34; g.add(string);
-                const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), accentMat);
-                leaf.scale.set(1.6, 0.7, 0.35);
-                leaf.position.set(0.08, 0.24, 0);
-                g.add(leaf);
+                const string = new THREE.Mesh(new THREE.BoxGeometry(0.02, 1.32, 0.02), accentMat);
+                string.position.x = -0.56; g.add(string);
+                const heldArrow = makeArrowMesh(c, accent, 0.95);
+                heldArrow.position.set(-0.08, 0, 0.05);
+                heldArrow.rotation.z = 0;
+                g.add(heldArrow);
+                const leafTop = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), accentMat);
+                leafTop.scale.set(1.8, 0.72, 0.35);
+                leafTop.position.set(0.08, 0.46, 0);
+                g.add(leafTop);
+                const leafBottom = leafTop.clone();
+                leafBottom.position.y = -0.46;
+                g.add(leafBottom);
                 break;
             }
             case 4: { // trident
-                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat);
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.55, 8), mat);
                 g.add(shaft);
-                for (let dx of [-0.1, 0, 0.1]) {
-                    const prong = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.2, 6), mat);
-                    prong.position.set(dx, 0.7, 0); g.add(prong);
+                for (let dx of [-0.18, 0, 0.18]) {
+                    const prong = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.34, 8), mat);
+                    prong.position.set(dx, 0.92, 0); g.add(prong);
                 }
-                const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8), accentMat);
-                bubble.position.set(0, 0.38, 0); bubble.material.transparent = true; bubble.material.opacity = 0.72; g.add(bubble);
+                const cross = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.06, 0.06), accentMat);
+                cross.position.y = 0.72; g.add(cross);
+                const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 10), accentMat);
+                bubble.position.set(0, 0.44, 0); bubble.material.transparent = true; bubble.material.opacity = 0.72; g.add(bubble);
                 break;
             }
             default: { // magical weapons (5-8): glowing orb on staff
-                const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.0, 6),
+                const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 1.35, 8),
                     woodMat);
                 g.add(staff);
-                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8),
+                const orb = new THREE.Mesh(new THREE.SphereGeometry(0.23, 18, 12),
                     new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.95, roughness: 0.1 }));
-                orb.position.y = 0.6; g.add(orb);
-                const halo = new THREE.Mesh(new THREE.TorusGeometry(0.23, 0.018, 8, 28), accentMat);
-                halo.position.y = 0.6; halo.rotation.x = Math.PI / 2; g.add(halo);
-                const glow = new THREE.PointLight(c, 1, 4);
-                glow.position.y = 0.6; g.add(glow);
+                orb.position.y = 0.76; g.add(orb);
+                const halo = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.022, 8, 32), accentMat);
+                halo.position.y = 0.76; halo.rotation.x = Math.PI / 2; g.add(halo);
+                const glowDisc = new THREE.Mesh(new THREE.CircleGeometry(0.46, 32), glowMat);
+                glowDisc.position.y = 0.76; glowDisc.rotation.x = Math.PI / 2; g.add(glowDisc);
+                const glow = new THREE.PointLight(c, 1.4, 5);
+                glow.position.y = 0.76; g.add(glow);
                 break;
             }
         }
+        g.scale.setScalar(1.22);
         g.traverse(obj => { if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true; } });
         return g;
     }
@@ -760,17 +839,45 @@
     function spawnSlashEffect(char, facingRight) {
         const weapon = weaponData[char === char1 ? localPlayer.weapon : remotePlayer.weapon] || weaponData[0];
         const slash = new THREE.Mesh(
-            new THREE.TorusGeometry(0.9, 0.055, 8, 28, Math.PI * 0.86),
+            new THREE.TorusGeometry(1.18, 0.075, 8, 32, Math.PI * 0.92),
             new THREE.MeshBasicMaterial({ color: weapon.accent || 0xffffff, transparent: true, opacity: 0.86, side: THREE.DoubleSide })
         );
         slash.position.copy(char.position);
         slash.position.y = 1.72;
-        slash.position.x += facingRight ? 0.8 : -0.8;
+        slash.position.x += facingRight ? 1.08 : -1.08;
         slash.position.z += 0.18;
         slash.rotation.y = facingRight ? 0 : Math.PI;
         slash.rotation.z = facingRight ? -0.28 : 0.28;
         scene.add(slash);
-        effects.push({ mesh: slash, type: 'slash', life: 0, maxLife: 0.3 });
+        effects.push({ mesh: slash, type: 'slash', life: 0, maxLife: 0.34 });
+    }
+
+    function spawnArrowEffect(char, facingRight, weaponIndex) {
+        const weapon = weaponData[weaponIndex] || weaponData[3];
+        const arrow = makeArrowMesh(weapon.color, weapon.accent, 1.28);
+        const dir = facingRight ? 1 : -1;
+        arrow.position.copy(char.position);
+        arrow.position.x += dir * 0.75;
+        arrow.position.y = 1.72;
+        arrow.position.z += 0.16;
+        arrow.rotation.y = facingRight ? 0 : Math.PI;
+        scene.add(arrow);
+
+        const trail = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.025, 0.08, 1.1, 8),
+            new THREE.MeshBasicMaterial({ color: weapon.accent, transparent: true, opacity: 0.46 })
+        );
+        trail.rotation.z = Math.PI / 2;
+        trail.position.x = -dir * 0.55;
+        arrow.add(trail);
+
+        effects.push({
+            mesh: arrow,
+            type: 'arrow',
+            vel: new THREE.Vector3(dir * 18, 0.18, 0),
+            life: 0,
+            maxLife: 0.62
+        });
     }
 
     function updateEffects(dt) {
@@ -780,6 +887,10 @@
             const t = e.life / e.maxLife;
             if (t >= 1) {
                 scene.remove(e.mesh);
+                e.mesh.traverse?.(obj => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material?.dispose) obj.material.dispose();
+                });
                 if (e.mesh.geometry) e.mesh.geometry.dispose();
                 effects.splice(i, 1);
                 continue;
@@ -796,8 +907,16 @@
                 e.mesh.material.opacity = 1 - t;
             } else if (e.type === 'slash') {
                 e.mesh.material.opacity = 1 - t;
-                const s = 1 + t * 0.5;
+                const s = 1 + t * 0.75;
                 e.mesh.scale.set(s, s, s);
+                e.mesh.rotation.z += dt * 4;
+            } else if (e.type === 'arrow') {
+                e.mesh.position.add(e.vel.clone().multiplyScalar(dt));
+                e.mesh.position.y += Math.sin(t * Math.PI) * 0.012;
+                e.mesh.scale.setScalar(1 + t * 0.18);
+                e.mesh.children.forEach(child => {
+                    if (child.material?.opacity !== undefined) child.material.opacity = Math.max(0, 0.46 * (1 - t));
+                });
             }
         }
     }
@@ -844,14 +963,32 @@
         d.contact.scale.set(1 + Math.abs(bounce) * 0.3, 0.72 + Math.abs(bounce) * 0.15, 1);
 
         if (state.attacking) {
-            // Attack pose: arm swings forward
-            d.armR.rotation.z = -1.5;
-            d.armR.rotation.x = -0.5;
-            d.armR.position.z = 0.3;
-            d.handR.position.z = 0.38;
-            d.shoulderR.rotation.x = -0.35;
-            d.weaponGroup.position.set(0.7, 2.2, 0.6);
-            d.weaponGroup.rotation.z = Math.sin(time * 25) * 0.08;
+            const weapon = weaponData[state.weapon] || weaponData[0];
+            const attackAge = state.attackStart >= 0 ? Math.max(0, time - state.attackStart) : 0;
+            const windup = Math.min(1, attackAge / 0.16);
+            const release = Math.min(1, Math.max(0, (attackAge - 0.12) / 0.18));
+            const swing = Math.sin(Math.min(1, release) * Math.PI);
+
+            if (weapon.kind === 'bow') {
+                d.armL.rotation.z = 0.85;
+                d.armL.rotation.x = -0.42;
+                d.armR.rotation.z = -1.35 + windup * 0.28;
+                d.armR.rotation.x = -0.86;
+                d.handR.position.set(0.5 - windup * 0.22, 1.55, 0.48);
+                d.weaponGroup.position.set(0.74, 2.06, 0.62);
+                d.weaponGroup.rotation.set(0, 0, -0.18 + windup * 0.2);
+                char.rotation.z = state.facingRight ? -0.08 : 0.08;
+            } else {
+                d.armR.rotation.z = -1.55 - swing * 0.55;
+                d.armR.rotation.x = -0.95 + swing * 0.85;
+                d.armR.position.z = 0.34 + swing * 0.28;
+                d.handR.position.set(0.66, 1.34 + swing * 0.18, 0.22 + swing * 0.48);
+                d.shoulderR.rotation.x = -0.45 - swing * 0.35;
+                d.weaponGroup.position.set(0.82 + swing * 0.22, 2.18 - swing * 0.08, 0.64 + swing * 0.26);
+                d.weaponGroup.rotation.set(-0.35 + swing * 0.55, 0, -0.95 + swing * 1.65);
+                char.rotation.z = state.facingRight ? -0.16 * swing : 0.16 * swing;
+            }
+            d.cape.rotation.x = 0.34 + swing * 0.12;
         } else if (state.dodging) {
             // Dodge lean
             char.rotation.z = state.facingRight ? -0.4 : 0.4;
@@ -873,10 +1010,11 @@
 
             const armSwing = Math.sin(time * (isMoving ? 10 : 2.5)) * (isMoving ? 0.42 : 0.1);
             d.armL.rotation.x = -armSwing;
+            d.armL.rotation.z = 0.34;
             d.armR.rotation.x = armSwing;
             d.armR.rotation.z = -0.3;
             d.armR.position.z = 0;
-            d.handR.position.z = 0.06;
+            d.handR.position.set(0.62, 1.34, 0.06);
             d.shoulderR.rotation.x = 0;
             d.weaponGroup.position.set(0.6, 2.0, 0.3);
             d.weaponGroup.rotation.set(0, 0, 0);
@@ -931,9 +1069,15 @@
             remotePlayer.facingRight = action.facingRight;
         } else if (action.type === 'attack') {
             remotePlayer.attacking = true;
+            remotePlayer.attackStart = clock.getElapsedTime();
             remotePlayer.facingRight = action.facingRight;
-            if (char2) spawnSlashEffect(char2, action.facingRight);
-            setTimeout(() => { remotePlayer.attacking = false; }, 300);
+            if (typeof action.weapon === 'number') remotePlayer.weapon = action.weapon;
+            if (char2) {
+                const weapon = weaponData[remotePlayer.weapon] || weaponData[0];
+                if (weapon.kind === 'bow') spawnArrowEffect(char2, action.facingRight, remotePlayer.weapon);
+                else spawnSlashEffect(char2, action.facingRight);
+            }
+            setTimeout(() => { remotePlayer.attacking = false; }, 420);
         } else if (action.type === 'dodge') {
             remotePlayer.dodging = true;
             remotePlayer.vx = action.vx;
@@ -979,11 +1123,13 @@
         const w = weaponData[localPlayer.weapon];
         document.getElementById('wIcon').textContent = w.icon;
         document.getElementById('wName').textContent = w.name;
+        document.getElementById('wDesc').textContent = w.desc;
         document.getElementById('wPow').textContent = w.power;
+        document.getElementById('wRange').textContent = w.range.toFixed(1);
         const toast = document.getElementById('weaponToast');
         toast.classList.add('show');
         clearTimeout(toast._t);
-        toast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+        toast._t = setTimeout(() => toast.classList.remove('show'), 2800);
     }
 
     /* ═══════════════════════════════════════════
@@ -1048,12 +1194,17 @@
     ═══════════════════════════════════════════ */
     function doAttack() {
         if (!localPlayer.attacking && gameStarted && !opponentLeft) {
+            const weapon = weaponData[localPlayer.weapon];
             localPlayer.attacking = true;
-            socket.emit('gameAction', { roomId, action: { type: 'attack', facingRight: localPlayer.facingRight } });
-            if (char1) spawnSlashEffect(char1, localPlayer.facingRight);
+            localPlayer.attackStart = clock.getElapsedTime();
+            socket.emit('gameAction', { roomId, action: { type: 'attack', facingRight: localPlayer.facingRight, weapon: localPlayer.weapon } });
+            if (char1) {
+                if (weapon.kind === 'bow') spawnArrowEffect(char1, localPlayer.facingRight, localPlayer.weapon);
+                else spawnSlashEffect(char1, localPlayer.facingRight);
+            }
             const dist = Math.hypot(localPlayer.x - remotePlayer.x, localPlayer.z - remotePlayer.z);
-            if (dist < 3.5) {
-                const dmg = weaponData[localPlayer.weapon].power;
+            if (dist < weapon.range) {
+                const dmg = weapon.power;
                 socket.emit('gameAction', { roomId, action: { type: 'hit', damage: dmg } });
                 if (char2) { spawnHitEffect(char2.position); cameraShake(0.15); }
                 remotePlayer.health = Math.max(0, remotePlayer.health - dmg);
@@ -1062,7 +1213,7 @@
                 setTimeout(() => { remotePlayer.hurt = false; }, 300);
                 if (remotePlayer.health <= 0) endGame(true);
             }
-            setTimeout(() => { localPlayer.attacking = false; }, 300);
+            setTimeout(() => { localPlayer.attacking = false; }, 420);
         }
     }
 
@@ -1179,12 +1330,21 @@
     }
 
     // Join button
+    const playerNameInput = document.getElementById('playerName');
+    const savedPlayerName = localStorage.getItem('littleWarrior.playerName');
+    if (savedPlayerName) playerNameInput.value = savedPlayerName;
+
     document.getElementById('joinBtn').addEventListener('click', () => {
-        const name = document.getElementById('playerName').value.trim() || '匿名玩家';
+        const name = playerNameInput.value.trim() || '匿名玩家';
+        localStorage.setItem('littleWarrior.playerName', name);
         document.getElementById('status').textContent = '正在连接...';
         socket.emit('joinGame', name);
     });
-    document.getElementById('playerName').addEventListener('keydown', (e) => {
+    playerNameInput.addEventListener('input', () => {
+        const name = playerNameInput.value.trim();
+        if (name) localStorage.setItem('littleWarrior.playerName', name);
+    });
+    playerNameInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') document.getElementById('joinBtn').click();
     });
 
