@@ -43,7 +43,18 @@ npm start
 
 - Node.js + Express
 - Socket.io (WebSocket 实时通信)
-- HTML5 Canvas
+- Three.js 3D 渲染
+- OpenAI Images 离线美术资产流水线（见 `docs/openai-images-art-pipeline.md`）
+
+## 3D 化方向
+
+当前版本已经升级为动态 3D 视角：包含更丰富的竞技场、儿童友好的玩具感小战士、前后位移、动态镜头、柔和光照、接触阴影、星光命中特效，并预留 `public/assets/ai/manifest.json` 用于加载 OpenAI Images 生成的高质量贴图资产。
+
+生成 AI 美术资产：
+
+```bash
+OPENAI_API_KEY=... npm run generate:ai-assets
+```
 
 ## 许可证
 
