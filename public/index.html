@@ -105,25 +105,30 @@
         }
 
         /* Weapon Info */
-        .weapon-toast {
-            position: absolute; top: 76px; right: 20px; min-width: 300px;
-            padding: 16px 18px; display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 14px;
-            opacity: 0; transform: translateX(60px) scale(0.94); transition: all 0.4s cubic-bezier(.4,0,.2,1);
+        .weapon-panel {
+            position: absolute; top: 72px; left: 16px; right: 16px;
+            display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px;
+            max-width: 760px; margin: 0 auto;
+        }
+        .weapon-card {
+            min-width: 0; padding: 12px 14px; display: grid; grid-template-columns: 52px minmax(0, 1fr);
+            align-items: center; gap: 12px; position: relative;
             box-shadow: 0 18px 55px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.18);
         }
-        .weapon-toast.show { opacity: 1; transform: translateX(0) scale(1); }
-        .weapon-toast::before {
+        .weapon-card.pulse { animation: weaponPulse 0.42s ease; }
+        .weapon-card::before {
             content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
             background: linear-gradient(135deg, rgba(255,255,255,0.18), transparent 40%, rgba(255,210,0,0.12));
         }
+        .weapon-card.enemy::before { background: linear-gradient(135deg, rgba(255,255,255,0.14), transparent 40%, rgba(255,107,107,0.13)); }
         .weapon-emoji {
-            width: 64px; height: 64px; display: flex; align-items: center; justify-content: center;
-            font-size: 42px; border-radius: 16px; background: rgba(0,0,0,0.18);
+            width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+            font-size: 34px; border-radius: 14px; background: rgba(0,0,0,0.18);
             box-shadow: inset 0 0 24px rgba(255,255,255,0.1), 0 10px 24px rgba(0,0,0,0.2);
         }
         .weapon-detail { position: relative; z-index: 1; }
         .weapon-detail .w-label { font-size: 11px; letter-spacing: 2px; font-weight: 900; color: rgba(255,255,255,0.52); }
-        .weapon-detail .w-name { font-size: 24px; line-height: 1.05; font-weight: 900; text-shadow: 0 4px 18px rgba(0,0,0,0.35); }
+        .weapon-detail .w-name { font-size: 20px; line-height: 1.05; font-weight: 900; text-shadow: 0 4px 18px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .weapon-detail .w-desc { margin-top: 5px; font-size: 12px; color: rgba(255,255,255,0.66); }
         .weapon-stats { display: flex; gap: 8px; margin-top: 10px; }
         .weapon-stat {
@@ -132,6 +137,19 @@
         }
         .weapon-stat.power { color: #ffd166; }
         .weapon-stat.range { color: #90caf9; }
+        @keyframes weaponPulse {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.035); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 680px) {
+            .weapon-panel { top: 82px; grid-template-columns: 1fr; max-width: 360px; gap: 8px; }
+            .weapon-card { padding: 9px 10px; grid-template-columns: 42px minmax(0, 1fr); gap: 9px; }
+            .weapon-emoji { width: 42px; height: 42px; font-size: 28px; }
+            .weapon-detail .w-name { font-size: 16px; }
+            .weapon-detail .w-desc { display: none; }
+            .weapon-stats { margin-top: 5px; }
+        }
 
         /* Joystick */
         .joystick-zone {
@@ -268,15 +286,29 @@
             </div>
         </div>
 
-        <div class="weapon-toast glass" id="weaponToast">
-            <div class="weapon-emoji" id="wIcon">👊</div>
-            <div class="weapon-detail">
-                <div class="w-label">EQUIPPED</div>
-                <div class="w-name" id="wName">拳头</div>
-                <div class="w-desc" id="wDesc">近身连击</div>
-                <div class="weapon-stats">
-                    <div class="weapon-stat power">ATK <span id="wPow">10</span></div>
-                    <div class="weapon-stat range">RANGE <span id="wRange">2.4</span></div>
+        <div class="weapon-panel">
+            <div class="weapon-card glass ally" id="playerWeaponCard">
+                <div class="weapon-emoji" id="playerWIcon">👊</div>
+                <div class="weapon-detail">
+                    <div class="w-label">我方武器</div>
+                    <div class="w-name" id="playerWName">勇气拳套</div>
+                    <div class="w-desc" id="playerWDesc">贴身爆发连击</div>
+                    <div class="weapon-stats">
+                        <div class="weapon-stat power">ATK <span id="playerWPow">10</span></div>
+                        <div class="weapon-stat range">RANGE <span id="playerWRange">2.5</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="weapon-card glass enemy" id="opponentWeaponCard">
+                <div class="weapon-emoji" id="opponentWIcon">👊</div>
+                <div class="weapon-detail">
+                    <div class="w-label">对手武器</div>
+                    <div class="w-name" id="opponentWName">勇气拳套</div>
+                    <div class="w-desc" id="opponentWDesc">贴身爆发连击</div>
+                    <div class="weapon-stats">
+                        <div class="weapon-stat power">ATK <span id="opponentWPow">10</span></div>
+                        <div class="weapon-stat range">RANGE <span id="opponentWRange">2.5</span></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -311,6 +343,7 @@
     ═══════════════════════════════════════════ */
     const socket = io();
     let myPlayerNum = 0, roomId = null, gameStarted = false, opponentLeft = false;
+    const COMBAT_Z = 0;
 
     const localPlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
         attacking: false, attackStart: -1, dodging: false, hurt: false, facingRight: true, vx: 0, vz: 0 };
@@ -1150,7 +1183,7 @@
             id: `${roomId}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
             type: Math.random() < 0.52 ? 'health' : 'meteor',
             x: -10.5 + Math.random() * 21,
-            z: -2 + Math.random() * 4
+            z: COMBAT_Z
         };
         spawnSkyDrop(data);
         socket.emit('gameAction', { roomId, action: { type: 'dropSpawn', drop: data } });
@@ -1202,7 +1235,7 @@
                 }
             }
             if (!drop.collected && char1 && drop.mesh.position.y < 1.35) {
-                const dist = Math.hypot(localPlayer.x - drop.mesh.position.x, localPlayer.z - drop.mesh.position.z);
+                const dist = Math.abs(localPlayer.x - drop.mesh.position.x);
                 if (dist < (drop.type === 'meteor' ? 1.05 : 0.9)) applyDropToLocal(drop);
             }
             if (drop.landedAt && time - drop.landedAt > (drop.type === 'meteor' ? 1.1 : 8)) removeDrop(drop.id);
@@ -1226,7 +1259,7 @@
             d.chest.material.emissive.setHex(0x000000);
         }
 
-        const isMoving = Math.hypot(state.vx, state.vz || 0) > 0.02;
+        const isMoving = Math.abs(state.vx) > 0.02;
         const bounce = Math.sin(time * (isMoving ? 13 : 3.2)) * (isMoving ? 0.075 : 0.026);
         const sway = Math.sin(time * (isMoving ? 8 : 2)) * (isMoving ? 0.32 : 0.07);
         d.cape.rotation.x = 0.18 + Math.abs(sway) * 0.08;
@@ -1354,13 +1387,13 @@
         document.getElementById('uiOverlay').style.display = 'block';
 
         if (myPlayerNum === 1) {
-            localPlayer.x = -5; localPlayer.z = 0.7; remotePlayer.x = 5; remotePlayer.z = -0.7;
+            localPlayer.x = -5; localPlayer.z = COMBAT_Z; remotePlayer.x = 5; remotePlayer.z = COMBAT_Z;
             localPlayer.facingRight = true; remotePlayer.facingRight = false;
         } else {
-            localPlayer.x = 5; localPlayer.z = -0.7; remotePlayer.x = -5; remotePlayer.z = 0.7;
+            localPlayer.x = 5; localPlayer.z = COMBAT_Z; remotePlayer.x = -5; remotePlayer.z = COMBAT_Z;
             localPlayer.facingRight = false; remotePlayer.facingRight = true;
         }
-        lastSentMove = { x: localPlayer.x, z: localPlayer.z, facingRight: localPlayer.facingRight };
+        lastSentMove = { x: localPlayer.x, z: COMBAT_Z, facingRight: localPlayer.facingRight };
         lastMoveEmitAt = 0;
         nextWeaponAt = 0;
 
@@ -1368,6 +1401,8 @@
         document.getElementById('opponentInfo').textContent = `对手: ${data.opponentName}`;
 
         initCharacters();
+        updateWeaponPanel('player');
+        updateWeaponPanel('opponent');
         scheduleNextDrop(clock.getElapsedTime());
         animate();
     });
@@ -1375,9 +1410,9 @@
     socket.on('opponentAction', (action) => {
         if (action.type === 'move') {
             remotePlayer.x = action.x;
-            remotePlayer.z = action.z || 0;
+            remotePlayer.z = COMBAT_Z;
             remotePlayer.vx = action.vx;
-            remotePlayer.vz = action.vz || 0;
+            remotePlayer.vz = 0;
             remotePlayer.facingRight = action.facingRight;
         } else if (action.type === 'attack') {
             remotePlayer.attacking = true;
@@ -1397,6 +1432,7 @@
         } else if (action.type === 'weapon') {
             remotePlayer.weapon = action.weapon;
             if (char2) updateWeaponMesh(char2, action.weapon);
+            updateWeaponPanel('opponent', true);
         } else if (action.type === 'dropSpawn') {
             if (action.drop) spawnSkyDrop(action.drop);
         } else if (action.type === 'dropCollect') {
@@ -1453,17 +1489,26 @@
         document.getElementById(who === 'player' ? 'playerHpText' : 'opponentHpText').textContent = `${Math.round(p.health)}/${p.maxHealth}`;
     }
 
+    function updateWeaponPanel(who, pulse = false) {
+        const isPlayer = who === 'player';
+        const prefix = isPlayer ? 'player' : 'opponent';
+        const player = isPlayer ? localPlayer : remotePlayer;
+        const w = weaponData[player.weapon] || weaponData[0];
+        document.getElementById(`${prefix}WIcon`).textContent = w.icon;
+        document.getElementById(`${prefix}WName`).textContent = w.name;
+        document.getElementById(`${prefix}WDesc`).textContent = w.desc;
+        document.getElementById(`${prefix}WPow`).textContent = w.power;
+        document.getElementById(`${prefix}WRange`).textContent = w.range.toFixed(1);
+        if (pulse) {
+            const card = document.getElementById(`${prefix}WeaponCard`);
+            card.classList.remove('pulse');
+            void card.offsetWidth;
+            card.classList.add('pulse');
+        }
+    }
+
     function showWeaponToast() {
-        const w = weaponData[localPlayer.weapon];
-        document.getElementById('wIcon').textContent = w.icon;
-        document.getElementById('wName').textContent = w.name;
-        document.getElementById('wDesc').textContent = w.desc;
-        document.getElementById('wPow').textContent = w.power;
-        document.getElementById('wRange').textContent = w.range.toFixed(1);
-        const toast = document.getElementById('weaponToast');
-        toast.classList.add('show');
-        clearTimeout(toast._t);
-        toast._t = setTimeout(() => toast.classList.remove('show'), 2800);
+        updateWeaponPanel('player', true);
     }
 
     /* ═══════════════════════════════════════════
@@ -1578,7 +1623,7 @@
                 if (weapon.kind === 'bow') spawnArrowEffect(char1, localPlayer.facingRight, localPlayer.weapon);
                 else spawnSlashEffect(char1, localPlayer.facingRight);
             }
-            const dist = Math.hypot(localPlayer.x - remotePlayer.x, localPlayer.z - remotePlayer.z);
+            const dist = Math.abs(localPlayer.x - remotePlayer.x);
             if (dist < weapon.range) {
                 const dmg = weapon.power;
                 socket.emit('gameAction', { roomId, action: { type: 'hit', damage: dmg } });
@@ -1626,40 +1671,37 @@
         if (!gameStarted || opponentLeft) return;
         if (keys.left) { localPlayer.vx = -0.12; localPlayer.facingRight = false; }
         else if (keys.right) { localPlayer.vx = 0.12; localPlayer.facingRight = true; }
-        if (keys.up) localPlayer.vz = -0.095;
-        else if (keys.down) localPlayer.vz = 0.095;
+        if (keys.up || keys.down) localPlayer.vz = 0;
         if (joystickState.active) {
             localPlayer.vx = joystickState.x * 0.12;
-            localPlayer.vz = joystickState.y * 0.095;
+            localPlayer.vz = 0;
             if (joystickState.x > 0.2) localPlayer.facingRight = true;
             if (joystickState.x < -0.2) localPlayer.facingRight = false;
         }
         if (!keys.left && !keys.right && !joystickState.active) localPlayer.vx *= 0.85;
-        if (!keys.up && !keys.down && !joystickState.active) localPlayer.vz *= 0.82;
+        localPlayer.vz = 0;
 
         localPlayer.x += localPlayer.vx;
-        localPlayer.z += localPlayer.vz;
+        localPlayer.z = COMBAT_Z;
         localPlayer.vx *= 0.92;
-        localPlayer.vz *= 0.9;
+        localPlayer.vz = 0;
         localPlayer.x = Math.max(-13, Math.min(13, localPlayer.x));
-        localPlayer.z = Math.max(-2.2, Math.min(2.2, localPlayer.z));
+        localPlayer.z = COMBAT_Z;
 
-        const moved = Math.hypot(localPlayer.x - lastSentMove.x, localPlayer.z - lastSentMove.z) > 0.05;
+        const moved = Math.abs(localPlayer.x - lastSentMove.x) > 0.05;
         const turned = localPlayer.facingRight !== lastSentMove.facingRight;
-        if (time - lastMoveEmitAt > 0.066 && (moved || turned || Math.hypot(localPlayer.vx, localPlayer.vz) > 0.01)) {
-            socket.emit('gameAction', { roomId, action: { type: 'move', x: localPlayer.x, z: localPlayer.z, vx: localPlayer.vx, vz: localPlayer.vz, facingRight: localPlayer.facingRight } });
+        if (time - lastMoveEmitAt > 0.066 && (moved || turned || Math.abs(localPlayer.vx) > 0.01)) {
+            socket.emit('gameAction', { roomId, action: { type: 'move', x: localPlayer.x, z: COMBAT_Z, vx: localPlayer.vx, vz: 0, facingRight: localPlayer.facingRight } });
             lastMoveEmitAt = time;
-            lastSentMove = { x: localPlayer.x, z: localPlayer.z, facingRight: localPlayer.facingRight };
+            lastSentMove = { x: localPlayer.x, z: COMBAT_Z, facingRight: localPlayer.facingRight };
         }
     }
 
     function updateCamera(dt) {
         const midX = (localPlayer.x + remotePlayer.x) * 0.5;
-        const midZ = (localPlayer.z + remotePlayer.z) * 0.5;
-        const spread = Math.min(13, Math.hypot(localPlayer.x - remotePlayer.x, localPlayer.z - remotePlayer.z));
-        cameraTarget.set(midX, 1.55, midZ);
+        const spread = Math.min(13, Math.abs(localPlayer.x - remotePlayer.x));
+        cameraTarget.set(midX, 1.55, COMBAT_Z);
         cameraDesired.set(midX, 8.4 + spread * 0.22, 12.2 + spread * 0.58);
-        cameraDesired.z += midZ * 0.18;
         camera.position.lerp(cameraDesired, Math.min(1, dt * 3.5));
         if (shakeTimer > 0) {
             shakeTimer = Math.max(0, shakeTimer - dt);
@@ -1684,13 +1726,13 @@
         if (char1) {
             char1.position.x = localPlayer.x;
             char1.position.y = 0;
-            char1.position.z = localPlayer.z;
+            char1.position.z = COMBAT_Z;
             animateCharacter(char1, localPlayer, time);
         }
         if (char2) {
             char2.position.x = remotePlayer.x;
             char2.position.y = 0;
-            char2.position.z = remotePlayer.z;
+            char2.position.z = COMBAT_Z;
             animateCharacter(char2, remotePlayer, time);
         }
 
