@@ -1,14 +1,13 @@
 {
-  "style": "kid-friendly stylized-realistic fantasy arena",
   "textures": {
-    "ground": "/assets/ai/generated/arena-ground.png"
+    "ground": "/assets/ground.png"
   },
   "sky": {
-    "top": "#5ea7e8",
-    "bottom": "#d7f4f2"
+    "top": "#ff7e5f",
+    "bottom": "#feb47b"
   },
   "palette": {
-    "sun": "#fff4df",
-    "rim": "#9edcff"
+    "sun": "#ffedd5",
+    "rim": "#a0e8ff"
   }
 }

@@ -347,7 +347,7 @@
 
     const localPlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
         attacking: false, attackStart: -1, dodging: false, hurt: false, facingRight: true, vx: 0, vz: 0 };
-    const remotePlayer = { x: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
+    const remotePlayer = { x: 0, targetX: 0, z: 0, health: 100, maxHealth: 100, weapon: 0,
         attacking: false, attackStart: -1, dodging: false, hurt: false, facingRight: false, vx: 0, vz: 0 };
 
     const weaponData = [
@@ -643,15 +643,17 @@
     function createCharacter(color) {
         const group = new THREE.Group();
         const base = new THREE.Color(color);
-        const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.08 });
-        const matLight = new THREE.MeshStandardMaterial({ color: base.clone().lerp(new THREE.Color(0xffffff), 0.36), roughness: 0.42 });
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffc49b, roughness: 0.52 });
-        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x6d4c41, roughness: 0.78 });
-        const goldMat = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.3, metalness: 0.38 });
-        const darkMat = new THREE.MeshStandardMaterial({ color: 0x2f3440, roughness: 0.62, metalness: 0.08 });
-        const capeMat = new THREE.MeshStandardMaterial({
+        const mat = new THREE.MeshPhysicalMaterial({ color, roughness: 0.4, metalness: 0.1, clearcoat: 0.3, clearcoatRoughness: 0.2 });
+        const matLight = new THREE.MeshPhysicalMaterial({ color: base.clone().lerp(new THREE.Color(0xffffff), 0.36), roughness: 0.35, clearcoat: 0.2 });
+        const skinMat = new THREE.MeshPhysicalMaterial({ color: 0xffc49b, roughness: 0.45, sheen: 0.5, sheenColor: new THREE.Color(0xffe0bd) });
+        const leatherMat = new THREE.MeshPhysicalMaterial({ color: 0x6d4c41, roughness: 0.8, clearcoat: 0.1 });
+        const goldMat = new THREE.MeshPhysicalMaterial({ color: 0xffd166, roughness: 0.25, metalness: 0.8, clearcoat: 1.0, clearcoatRoughness: 0.1 });
+        const darkMat = new THREE.MeshPhysicalMaterial({ color: 0x2f3440, roughness: 0.5, metalness: 0.15, clearcoat: 0.4 });
+        const capeMat = new THREE.MeshPhysicalMaterial({
             color: base.clone().offsetHSL(0.04, 0.05, -0.12),
-            roughness: 0.72,
+            roughness: 0.8,
+            sheen: 1.0,
+            sheenColor: base.clone().lerp(new THREE.Color(0xffffff), 0.5),
             side: THREE.DoubleSide
         });
 
@@ -935,7 +937,11 @@
         ring.position.copy(pos); ring.position.y = 1.5;
         ring.rotation.x = -Math.PI / 2;
         scene.add(ring);
-        effects.push({ mesh: ring, type: 'ring', life: 0, maxLife: 0.5 });
+        const hitLight = new THREE.PointLight(0xffddaa, 5.0, 8);
+        hitLight.position.copy(pos);
+        hitLight.position.y = 1.5;
+        scene.add(hitLight);
+        effects.push({ mesh: ring, type: 'ring', life: 0, maxLife: 0.5, light: hitLight, maxLightIntensity: 5.0 });
 
         for (let i = 0; i < 8; i++) {
             const isStar = i % 3 === 0;
@@ -954,6 +960,12 @@
     function spawnSlashEffect(char, facingRight) {
         const weapon = weaponData[char === char1 ? localPlayer.weapon : remotePlayer.weapon] || weaponData[0];
         const dir = facingRight ? 1 : -1;
+        const addLight = (mesh, color, intensity) => {
+            const light = new THREE.PointLight(color, intensity, 6);
+            light.position.copy(mesh.position);
+            scene.add(light);
+            return light;
+        };
         if (weapon.kind === 'heavy') {
             const shock = new THREE.Mesh(fxGeos.shock, fxMats.shock.clone());
             shock.position.copy(char.position);
@@ -961,7 +973,8 @@
             shock.position.y = 0.09;
             shock.rotation.x = -Math.PI / 2;
             scene.add(shock);
-            effects.push({ mesh: shock, type: 'shock', life: 0, maxLife: 0.42 });
+            const light = addLight(shock, 0xffa500, 3.5);
+            effects.push({ mesh: shock, type: 'shock', life: 0, maxLife: 0.42, light, maxLightIntensity: 3.5 });
             return;
         }
         if (weapon.kind === 'polearm') {
@@ -974,7 +987,8 @@
             thrust.position.y = 1.62;
             thrust.rotation.z = facingRight ? -Math.PI / 2 : Math.PI / 2;
             scene.add(thrust);
-            effects.push({ mesh: thrust, type: 'thrust', life: 0, maxLife: 0.28, dir });
+            const light = addLight(thrust, weapon.accent, 2.5);
+            effects.push({ mesh: thrust, type: 'thrust', life: 0, maxLife: 0.28, dir, light, maxLightIntensity: 2.5 });
             return;
         }
         if (weapon.kind === 'magic') {
@@ -986,7 +1000,8 @@
             burst.position.x += dir * 1.05;
             burst.position.y = 1.65;
             scene.add(burst);
-            effects.push({ mesh: burst, type: 'burst', life: 0, maxLife: 0.34 });
+            const light = addLight(burst, weapon.color, 4.0);
+            effects.push({ mesh: burst, type: 'burst', life: 0, maxLife: 0.34, light, maxLightIntensity: 4.0 });
             return;
         }
 
@@ -1004,7 +1019,8 @@
         if (weapon.name.includes('冰')) slash.scale.set(0.82, 1.24, 0.82);
         if (weapon.name.includes('拳')) slash.scale.set(0.58, 0.58, 0.58);
         scene.add(slash);
-        effects.push({ mesh: slash, type: weapon.name.includes('拳') ? 'punch' : 'slash', life: 0, maxLife: 0.34 });
+        const light = addLight(slash, weapon.accent || 0xffffff, 3.0);
+        effects.push({ mesh: slash, type: weapon.name.includes('拳') ? 'punch' : 'slash', life: 0, maxLife: 0.34, light, maxLightIntensity: 3.0 });
     }
 
     function spawnArrowEffect(char, facingRight, weaponIndex) {
@@ -1026,13 +1042,19 @@
         trail.position.x = -dir * 0.55;
         arrow.add(trail);
 
+        const light = new THREE.PointLight(weapon.accent, 2.5, 5);
+        light.position.copy(arrow.position);
+        scene.add(light);
+
         effects.push({
             mesh: arrow,
             type: 'arrow',
             vel: new THREE.Vector3(dir * 18, 0.18, 0),
             life: 0,
             maxLife: 0.62,
-            disposeGeometry: true
+            disposeGeometry: true,
+            light,
+            maxLightIntensity: 2.5
         });
     }
 
@@ -1041,8 +1063,10 @@
             const e = effects[i];
             e.life += dt;
             const t = e.life / e.maxLife;
+            if (e.light) e.light.intensity = e.maxLightIntensity * (1 - Math.pow(t, 2));
             if (t >= 1) {
                 scene.remove(e.mesh);
+                if (e.light) scene.remove(e.light);
                 e.mesh.traverse?.(obj => {
                     if (e.disposeGeometry && obj.geometry) obj.geometry.dispose();
                     if (obj.material?.dispose) obj.material.dispose();
@@ -1071,6 +1095,7 @@
                 const s = 0.62 + t * 0.85;
                 e.mesh.scale.set(s, s, s);
                 e.mesh.position.x += (e.mesh.rotation.y === 0 ? 1 : -1) * dt * 1.8;
+                if (e.light) e.light.position.copy(e.mesh.position);
             } else if (e.type === 'shock') {
                 e.mesh.material.opacity = 0.78 * (1 - t);
                 const s = 1 + t * 3.6;
@@ -1079,6 +1104,7 @@
                 e.mesh.material.opacity = 0.78 * (1 - t);
                 e.mesh.position.x += e.dir * dt * 4.5;
                 e.mesh.scale.set(1 + t * 0.35, 1 + t * 0.9, 1 + t * 0.35);
+                if (e.light) e.light.position.copy(e.mesh.position);
             } else if (e.type === 'burst') {
                 e.mesh.material.opacity = 0.5 * (1 - t);
                 const s = 0.7 + t * 2.2;
@@ -1087,6 +1113,7 @@
                 e.mesh.position.add(e.vel.clone().multiplyScalar(dt));
                 e.mesh.position.y += Math.sin(t * Math.PI) * 0.012;
                 e.mesh.scale.setScalar(1 + t * 0.18);
+                if (e.light) e.light.position.copy(e.mesh.position);
                 e.mesh.children.forEach(child => {
                     if (child.material?.opacity !== undefined) child.material.opacity = Math.max(0, 0.46 * (1 - t));
                 });
@@ -1387,10 +1414,10 @@
         document.getElementById('uiOverlay').style.display = 'block';
 
         if (myPlayerNum === 1) {
-            localPlayer.x = -5; localPlayer.z = COMBAT_Z; remotePlayer.x = 5; remotePlayer.z = COMBAT_Z;
+            localPlayer.x = -5; localPlayer.z = COMBAT_Z; remotePlayer.x = 5; remotePlayer.targetX = 5; remotePlayer.z = COMBAT_Z;
             localPlayer.facingRight = true; remotePlayer.facingRight = false;
         } else {
-            localPlayer.x = 5; localPlayer.z = COMBAT_Z; remotePlayer.x = -5; remotePlayer.z = COMBAT_Z;
+            localPlayer.x = 5; localPlayer.z = COMBAT_Z; remotePlayer.x = -5; remotePlayer.targetX = -5; remotePlayer.z = COMBAT_Z;
             localPlayer.facingRight = false; remotePlayer.facingRight = true;
         }
         lastSentMove = { x: localPlayer.x, z: COMBAT_Z, facingRight: localPlayer.facingRight };
@@ -1409,7 +1436,7 @@
 
     socket.on('opponentAction', (action) => {
         if (action.type === 'move') {
-            remotePlayer.x = action.x;
+            remotePlayer.targetX = action.x;
             remotePlayer.z = COMBAT_Z;
             remotePlayer.vx = action.vx;
             remotePlayer.vz = 0;
@@ -1730,6 +1757,8 @@
             animateCharacter(char1, localPlayer, time);
         }
         if (char2) {
+            // Lerp remote player position for smoothness
+            remotePlayer.x += (remotePlayer.targetX - remotePlayer.x) * Math.min(1, dt * 15);
             char2.position.x = remotePlayer.x;
             char2.position.y = 0;
             char2.position.z = COMBAT_Z;
