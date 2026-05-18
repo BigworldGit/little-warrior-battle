@@ -3,11 +3,11 @@
     "ground": "/assets/ground.png"
   },
   "sky": {
-    "top": "#ff7e5f",
-    "bottom": "#feb47b"
+    "top": "#1a4a82",
+    "bottom": "#86c8f9"
   },
   "palette": {
-    "sun": "#ffedd5",
-    "rim": "#a0e8ff"
+    "sun": "#ffffff",
+    "rim": "#d4eeff"
   }
 }

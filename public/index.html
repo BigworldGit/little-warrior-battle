@@ -294,8 +294,8 @@
                     <div class="w-name" id="playerWName">勇气拳套</div>
                     <div class="w-desc" id="playerWDesc">贴身爆发连击</div>
                     <div class="weapon-stats">
-                        <div class="weapon-stat power">ATK <span id="playerWPow">10</span></div>
-                        <div class="weapon-stat range">RANGE <span id="playerWRange">2.5</span></div>
+                        <div class="weapon-stat power">攻击力 <span id="playerWPow">10</span></div>
+                        <div class="weapon-stat range">攻击范围 <span id="playerWRange">2.5</span></div>
                     </div>
                 </div>
             </div>
@@ -306,8 +306,8 @@
                     <div class="w-name" id="opponentWName">勇气拳套</div>
                     <div class="w-desc" id="opponentWDesc">贴身爆发连击</div>
                     <div class="weapon-stats">
-                        <div class="weapon-stat power">ATK <span id="opponentWPow">10</span></div>
-                        <div class="weapon-stat range">RANGE <span id="opponentWRange">2.5</span></div>
+                        <div class="weapon-stat power">攻击力 <span id="opponentWPow">10</span></div>
+                        <div class="weapon-stat range">攻击范围 <span id="opponentWRange">2.5</span></div>
                     </div>
                 </div>
             </div>
@@ -387,6 +387,11 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
+    // Environment for PBR (AAA look)
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    scene.environment = pmremGenerator.fromScene(new THREE.Scene()).texture; // Will update with sky
+
     // Lighting
     scene.add(new THREE.AmbientLight(0xb7c9ff, 0.42));
     const hemi = new THREE.HemisphereLight(0xa7d8ff, 0x7ab26f, 0.72);
@@ -415,10 +420,21 @@
         fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vPos;
             void main(){ float h = normalize(vPos).y * 0.5 + 0.5; gl_FragColor = vec4(mix(bottomColor,topColor,h),1.0); }`
     });
-    scene.add(new THREE.Mesh(skyGeo, skyMat));
+    const skyMesh = new THREE.Mesh(skyGeo, skyMat);
+    scene.add(skyMesh);
+    scene.environment = pmremGenerator.fromScene(scene).texture;
 
     // ── Ground ──
-    const groundGeo = new THREE.PlaneGeometry(60, 40, 1, 1);
+    const groundGeo = new THREE.PlaneGeometry(60, 40, 64, 44);
+    const pos = groundGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i);
+        const y = pos.getY(i);
+        const zOff = (Math.sin(x * 0.2) + Math.cos(y * 0.25)) * 0.4 + (Math.sin(x * 0.8 + y * 0.5)) * 0.1;
+        pos.setZ(i, zOff);
+    }
+    groundGeo.computeVertexNormals();
+
     const groundCanvas = document.createElement('canvas');
     groundCanvas.width = 512; groundCanvas.height = 512;
     const gctx = groundCanvas.getContext('2d');
@@ -428,25 +444,39 @@
     grd.addColorStop(1, '#8fcf75');
     gctx.fillStyle = grd;
     gctx.fillRect(0, 0, 512, 512);
-    for (let i = 0; i < 5200; i++) {
-        gctx.fillStyle = `hsla(${92 + Math.random()*42}, ${45+Math.random()*30}%, ${28+Math.random()*32}%, ${0.35 + Math.random()*0.45})`;
-        const gx = Math.random() * 512, gy = Math.random() * 512;
-        gctx.fillRect(gx, gy, 1 + Math.random()*2, 2 + Math.random()*7);
-    }
-    for (let i = 0; i < 90; i++) {
-        gctx.fillStyle = ['#ffd166', '#ff8fab', '#bde0fe', '#f1fa8c'][i % 4];
-        gctx.beginPath();
-        gctx.arc(Math.random() * 512, Math.random() * 512, 1.2 + Math.random() * 1.8, 0, Math.PI * 2);
-        gctx.fill();
-    }
     const groundTex = new THREE.CanvasTexture(groundCanvas);
     groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
     groundTex.repeat.set(4, 3);
-    const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9 });
+    const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.9, flatShading: true });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
+
+    // ── 3D Grass (InstancedMesh) ──
+    const grassGeo = new THREE.ConeGeometry(0.1, 0.4, 3);
+    grassGeo.translate(0, 0.2, 0);
+    const grassMat = new THREE.MeshStandardMaterial({ color: 0x5ebd52, roughness: 0.8, side: THREE.DoubleSide });
+    const grassCount = 15000;
+    const grassInst = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
+    grassInst.receiveShadow = true;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < grassCount; i++) {
+        const gx = (Math.random() - 0.5) * 60;
+        const gz = (Math.random() - 0.5) * 40;
+        const gy = (Math.sin(gx * 0.2) + Math.cos(-gz * 0.25)) * 0.4 + (Math.sin(gx * 0.8 - gz * 0.5)) * 0.1;
+        dummy.position.set(gx, gy, gz);
+        dummy.rotation.y = Math.random() * Math.PI * 2;
+        dummy.rotation.x = (Math.random() - 0.5) * 0.2;
+        dummy.rotation.z = (Math.random() - 0.5) * 0.2;
+        const s = 0.5 + Math.random() * 0.8;
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        grassInst.setMatrixAt(i, dummy.matrix);
+        grassInst.setColorAt(i, new THREE.Color().setHSL(0.28 + Math.random() * 0.05, 0.4 + Math.random() * 0.2, 0.3 + Math.random() * 0.2));
+    }
+    scene.add(grassInst);
+
     const textureLoader = new THREE.TextureLoader();
 
     fetch('/assets/ai/manifest.json')
@@ -465,6 +495,7 @@
             if (manifest.sky?.top && manifest.sky?.bottom) {
                 skyMat.uniforms.topColor.value.set(manifest.sky.top);
                 skyMat.uniforms.bottomColor.value.set(manifest.sky.bottom);
+                scene.environment = pmremGenerator.fromScene(scene).texture;
             }
             if (manifest.palette?.sun) sun.color.set(manifest.palette.sun);
             if (manifest.palette?.rim) rimLight.color.set(manifest.palette.rim);
@@ -1323,37 +1354,23 @@
                 d.armR.rotation.z = -0.62;
                 d.armR.rotation.x = -0.72;
                 d.handR.position.set(0.78 + swing * 0.22, 1.42, 0.48 + swing * 0.46);
-                d.shoulderR.rotation.x = -0.18;
-                d.weaponGroup.position.set(0.95 + swing * 0.58, 1.98, 0.65 + swing * 0.24);
-                d.weaponGroup.rotation.set(0.35, 0, -1.46);
-                char.position.x += (state.facingRight ? 1 : -1) * swing * 0.035;
-                char.rotation.z = state.facingRight ? -0.07 : 0.07;
+                d.shoulderR.rotation.x = -0.3;
+                d.weaponGroup.position.set(0.9, 1.95, 0.72 + swing * 0.68);
+                d.weaponGroup.rotation.set(0.38, 0, 0);
             } else if (weapon.kind === 'magic') {
-                d.armR.rotation.z = -0.75 - windup * 0.45;
-                d.armR.rotation.x = -0.35 - swing * 0.42;
-                d.handR.position.set(0.72, 1.54 + swing * 0.22, 0.44 + swing * 0.36);
-                d.shoulderR.rotation.x = -0.1 - swing * 0.2;
-                d.weaponGroup.position.set(0.72 + swing * 0.2, 2.16 + Math.sin(time * 18) * 0.025, 0.64 + swing * 0.34);
-                d.weaponGroup.rotation.set(-0.18 + swing * 0.45, 0, -0.42 + swing * 0.38);
-                d.head.rotation.z = Math.sin(time * 18) * 0.035 * swing;
-                char.rotation.z = state.facingRight ? -0.09 * swing : 0.09 * swing;
-            } else if (weapon.name.includes('拳')) {
-                d.armR.rotation.z = -1.05 - swing * 0.8;
-                d.armR.rotation.x = -0.35 + swing * 0.5;
-                d.handR.position.set(0.68 + swing * 0.42, 1.44 + swing * 0.08, 0.3 + swing * 0.36);
-                d.shoulderR.rotation.x = -0.25 - swing * 0.2;
-                d.weaponGroup.position.set(0.78 + swing * 0.34, 1.72 + swing * 0.08, 0.48 + swing * 0.34);
-                d.weaponGroup.rotation.set(0.12, 0, -0.28 - swing * 0.45);
-                char.rotation.z = state.facingRight ? -0.11 * swing : 0.11 * swing;
-            } else {
-                d.armR.rotation.z = -1.55 - swing * 0.55;
-                d.armR.rotation.x = -0.95 + swing * 0.85;
-                d.armR.position.z = 0.34 + swing * 0.28;
-                d.handR.position.set(0.66, 1.34 + swing * 0.18, 0.22 + swing * 0.48);
-                d.shoulderR.rotation.x = -0.45 - swing * 0.35;
-                d.weaponGroup.position.set(0.82 + swing * 0.22, 2.18 - swing * 0.08, 0.64 + swing * 0.26);
-                d.weaponGroup.rotation.set(-0.35 + swing * 0.55, 0, -0.95 + swing * 1.65);
-                char.rotation.z = state.facingRight ? -0.16 * swing : 0.16 * swing;
+                d.armR.rotation.z = -1.4;
+                d.armR.rotation.x = -0.4 - windup * 0.6 + release * 0.4;
+                d.handR.position.set(0.55, 1.6, 0.65);
+                d.weaponGroup.position.set(0.65, 2.15, 0.85);
+                d.weaponGroup.rotation.set(0, windup * Math.PI * 2, -0.2);
+            } else { // melee/fist
+                const isPunch = weapon.name.includes('拳');
+                d.armR.rotation.z = -0.8 - swing * 0.5;
+                d.armR.rotation.x = -0.3 + swing * (isPunch ? 1.0 : 1.2);
+                d.handR.position.set(0.65, 1.45, 0.4 + swing * (isPunch ? 0.4 : 0.2));
+                d.weaponGroup.position.set(0.65, 1.95, 0.5 + swing * (isPunch ? 0.3 : 0.2));
+                d.weaponGroup.rotation.set(0, 0, -0.4 + swing * 1.2);
+                char.rotation.z = state.facingRight ? -0.1 * swing : 0.1 * swing;
             }
             d.cape.rotation.x = 0.34 + swing * 0.12;
         } else if (state.dodging) {
