@@ -215,10 +215,11 @@
             background: linear-gradient(135deg, #fff, #ffd166);
             border: 1px solid rgba(255,255,255,0.65); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         }
-        @media (hover: hover) and (pointer: fine) {
-            .key-hint { display: flex; }
-            .joystick-zone { opacity: 0.32; }
-            .act-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.13); }
+        @media (min-width: 801px) {
+            .key-hint { display: flex !important; }
+        }
+        @media (max-width: 800px) {
+            .key-hint { display: none !important; }
         }
         .btn-row { display: flex; justify-content: center; gap: 8px; }
 
@@ -475,49 +476,69 @@
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // ── 3D Grass (Volumetric Cross Sprites) ──
-    const grassCount = 6000;
-    const gPlane = new THREE.PlaneGeometry(0.7, 0.6);
-    gPlane.translate(0, 0.3, 0);
+    // ── 3D Grass (Professional Volumetric Shader) ──
+    const grassCount = 12000;
+    const gBladeGeo = new THREE.PlaneGeometry(0.3, 0.7, 1, 4); // 4 vertical segments for curving
+    gBladeGeo.translate(0, 0.35, 0);
     const grassGeo = new THREE.BufferGeometry();
     const gPos = []; const gUv = [];
-    // Cross shape (two intersecting planes)
-    const p1 = gPlane.attributes.position.array;
-    const u1 = gPlane.attributes.uv.array;
-    for(let i=0; i<p1.length; i+=3) { gPos.push(p1[i], p1[i+1], p1[i+2]); gUv.push(u1[i/3*2], u1[i/3*2+1]); }
-    for(let i=0; i<p1.length; i+=3) { gPos.push(p1[i+2], p1[i+1], p1[i]); gUv.push(u1[i/3*2], u1[i/3*2+1]); }
+    const pB = gBladeGeo.attributes.position.array;
+    const uB = gBladeGeo.attributes.uv.array;
+    // Create cross shape
+    for(let j=0; j<2; j++) {
+        for(let i=0; i<pB.length; i+=3) {
+            const rot = j * Math.PI / 2;
+            const rx = pB[i] * Math.cos(rot) - pB[i+2] * Math.sin(rot);
+            const rz = pB[i] * Math.sin(rot) + pB[i+2] * Math.cos(rot);
+            gPos.push(rx, pB[i+1], rz);
+            gUv.push(uB[i/3*2], uB[i/3*2+1]);
+        }
+    }
     grassGeo.setAttribute('position', new THREE.Float32BufferAttribute(gPos, 3));
     grassGeo.setAttribute('uv', new THREE.Float32BufferAttribute(gUv, 2));
 
     const grassMat = new THREE.MeshStandardMaterial({ 
         transparent: true, 
-        alphaTest: 0.35, 
+        alphaTest: 0.5, 
         side: THREE.DoubleSide,
-        roughness: 0.7,
+        roughness: 0.6,
         onBeforeCompile: (shader) => {
             shader.uniforms.uTime = { value: 0 };
-            shader.vertexShader = `uniform float uTime; \n` + shader.vertexShader.replace(
+            shader.uniforms.uWindNoise = { value: null };
+            shader.vertexShader = `
+                uniform float uTime;
+                uniform sampler2D uWindNoise;
+                varying float vHeight;
+                \n` + shader.vertexShader.replace(
                 '#include <begin_vertex>',
                 `#include <begin_vertex>
-                float sway = sin(uTime * 2.2 + position.x * 0.5) * 0.12 * uv.y;
-                transformed.x += sway; transformed.z += sway * 0.5;`
+                vec2 worldUV = (instanceMatrix * vec4(position, 1.0)).xz * 0.05;
+                float noise = texture2D(uWindNoise, worldUV + uTime * 0.05).r;
+                float sway = (sin(uTime * 2.0 + noise * 10.0) * 0.15 + noise * 0.2) * uv.y;
+                transformed.x += sway;
+                transformed.z += sway * 0.5;
+                vHeight = uv.y;`
+            );
+            shader.fragmentShader = `varying float vHeight; \n` + shader.fragmentShader.replace(
+                '#include <color_fragment>',
+                `#include <color_fragment>
+                diffuseColor.rgb = mix(diffuseColor.rgb * 0.4, diffuseColor.rgb * 1.2, vHeight);`
             );
             grassMat.userData.shader = shader;
         }
     });
     const grassInst = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
     grassInst.receiveShadow = true;
-    const dummy = new THREE.Object3D();
+    const grassDummy = new THREE.Object3D();
     for (let i = 0; i < grassCount; i++) {
         const gx = (Math.random() - 0.5) * 60;
         const gz = (Math.random() - 0.5) * 40;
         const gy = (Math.sin(gx * 0.2) + Math.cos(-gz * 0.25)) * 0.4 + (Math.sin(gx * 0.8 - gz * 0.5)) * 0.1;
-        dummy.position.set(gx, gy, gz);
-        dummy.rotation.y = Math.random() * Math.PI;
-        dummy.scale.setScalar(0.7 + Math.random() * 0.8);
-        dummy.updateMatrix();
-        grassInst.setMatrixAt(i, dummy.matrix);
-        grassInst.setColorAt(i, new THREE.Color().setHSL(0.28 + Math.random() * 0.05, 0.45 + Math.random() * 0.2, 0.35 + Math.random() * 0.2));
+        grassDummy.position.set(gx, gy, gz);
+        grassDummy.rotation.y = Math.random() * Math.PI;
+        grassDummy.scale.setScalar(0.7 + Math.random() * 0.9);
+        grassDummy.updateMatrix();
+        grassInst.setMatrixAt(i, grassDummy.matrix);
     }
     scene.add(grassInst);
 
@@ -530,13 +551,19 @@
             vec2 scale; scale.x = length( vec3( modelMatrix[ 0 ].x, modelMatrix[ 0 ].y, modelMatrix[ 0 ].z ) ); scale.y = length( vec3( modelMatrix[ 1 ].x, modelMatrix[ 1 ].y, modelMatrix[ 1 ].z ) );
             mvPosition.xy += position.xy * scale; gl_Position = projectionMatrix * mvPosition; }`,
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
-            void main() { vec4 tex = texture2D(map, vUv); if (tex.a < 0.1 || (tex.r < 0.02 && tex.g < 0.02 && tex.b < 0.02)) discard; gl_FragColor = tex; }`
+            void main() { vec4 tex = texture2D(map, vUv); if (tex.a < 0.2 || (tex.r < 0.01 && tex.g < 0.01 && tex.b < 0.01)) discard; gl_FragColor = tex; }`
     };
 
     fetch('/assets/ai/manifest.json')
         .then(res => res.ok ? res.json() : null)
         .then(manifest => {
             if (!manifest) return;
+            if (manifest.textures?.noise) {
+                textureLoader.load(manifest.textures.noise, tex => {
+                    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                    if (grassMat.userData.shader) grassMat.userData.shader.uniforms.uWindNoise.value = tex;
+                });
+            }
             if (manifest.textures?.ground) {
                 textureLoader.load(manifest.textures.ground, tex => {
                     tex.colorSpace = THREE.SRGBColorSpace;
@@ -587,21 +614,7 @@
         })
         .catch(() => {});
 
-    // ── Arena border ring (subtle) ──
-    const ringGeo = new THREE.RingGeometry(14, 14.3, 64);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
-    scene.add(ring);
-
-    // ── Soft stone path removed for seamless terrain ──
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff3b0, transparent: true, opacity: 0.24, side: THREE.DoubleSide });
-    for (let r = 3; r <= 9; r += 3) {
-        const magic = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.04, 96), glowMat.clone());
-        magic.rotation.x = -Math.PI / 2;
-        magic.position.y = 0.075;
-        scene.add(magic);
-    }
+    // ── Arena border and magical floor circles removed for AAA natural look ──
 
     // ── Decorations: trees ──
     const trees = [];
@@ -1183,46 +1196,26 @@
     function createDropMesh(type) {
         const g = new THREE.Group();
         if (type === 'health') {
-            if (loadedSprites['potion']) {
-                const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: loadedSprites['potion'] } }, vertexShader: spriteShader.vertexShader, fragmentShader: spriteShader.fragmentShader, transparent: true });
-                const sprite = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), mat);
-                sprite.position.y = 0.5;
-                g.add(sprite);
-                const glow = new THREE.PointLight(0xff5f7e, 1.5, 4);
-                glow.position.y = 0.5;
-                g.add(glow);
-                return g;
-            }
-            const pack = new THREE.Mesh(dropGeo.health, dropMat.health);
-            pack.castShadow = true;
-            g.add(pack);
-            const crossA = new THREE.Mesh(dropGeo.crossV, dropMat.cross);
-            const crossB = new THREE.Mesh(dropGeo.crossH, dropMat.cross);
-            crossA.position.z = 0.02; crossB.position.z = 0.03;
-            g.add(crossA, crossB);
-            const glow = new THREE.PointLight(0xff5f7e, 0.8, 4);
-            glow.position.y = 0.2;
-            g.add(glow);
+            // High quality medical kit
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 }));
+            box.castShadow = true;
+            g.add(box);
+            const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.45, 0.62), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 0.5 }));
+            const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.15, 0.62), new THREE.MeshStandardMaterial({ color: 0x2ecc71, emissive: 0x2ecc71, emissiveIntensity: 0.5 }));
+            g.add(crossV, crossH);
+            const light = new THREE.PointLight(0x2ecc71, 1.2, 4);
+            g.add(light);
+            g.userData.isHealth = true;
         } else {
-            if (loadedSprites['meteor']) {
-                const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: loadedSprites['meteor'] } }, vertexShader: spriteShader.vertexShader, fragmentShader: spriteShader.fragmentShader, transparent: true, blending: THREE.AdditiveBlending });
-                const sprite = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), mat);
-                sprite.position.y = 0.5;
-                g.add(sprite);
-                const light = new THREE.PointLight(0xff8a00, 2.0, 5);
-                g.add(light);
-                return g;
-            } else {
-                const rock = new THREE.Mesh(dropGeo.meteor, dropMat.meteor);
-                rock.castShadow = true;
-                g.add(rock);
-                const flame = new THREE.Mesh(dropGeo.flame, dropMat.flame.clone());
-                flame.position.y = 0.72;
-                flame.rotation.x = 0; // Pointing up as tail for downward movement
-                g.add(flame);
-                const light = new THREE.PointLight(0xff8a00, 1, 5);
-                g.add(light);
-            }
+            const rock = new THREE.Mesh(dropGeo.meteor, dropMat.meteor);
+            rock.castShadow = true;
+            g.add(rock);
+            const flame = new THREE.Mesh(dropGeo.flame, dropMat.flame.clone());
+            flame.position.y = 0.6;
+            g.add(flame);
+            const light = new THREE.PointLight(0xff8a00, 1.5, 6);
+            g.add(light);
+            g.userData.rock = rock; // Only rotate this
         }
         return g;
     }
@@ -1289,9 +1282,13 @@
         maybeHostDrop(time);
         drops.forEach(drop => {
             drop.mesh.position.y += drop.yVel * dt;
-            drop.mesh.rotation.y += dt * (drop.type === 'meteor' ? 4.2 : 1.8);
-            drop.mesh.rotation.x += dt * (drop.type === 'meteor' ? 2.5 : 0.7);
-            if (drop.type === 'health') drop.mesh.position.y += Math.sin(time * 4 + drop.mesh.position.x) * 0.004;
+            if (drop.mesh.userData.rock) {
+                drop.mesh.userData.rock.rotation.y += dt * 4.2;
+                drop.mesh.userData.rock.rotation.x += dt * 2.5;
+            } else if (drop.type === 'health') {
+                drop.mesh.rotation.y += dt * 1.8;
+                drop.mesh.position.y += Math.sin(time * 4 + drop.mesh.position.x) * 0.004;
+            }
             if (drop.mesh.position.y <= 0.65 && !drop.landedAt) {
                 drop.mesh.position.y = 0.65;
                 drop.landedAt = time;

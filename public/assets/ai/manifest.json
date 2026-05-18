@@ -1,11 +1,12 @@
 {
   "textures": {
-    "ground": "/assets/ground.png"
+    "ground": "/assets/ground.png",
+    "noise": "/assets/wind_noise.png"
   },
   "sprites": {
-    "tree": "/assets/tree.png",
+    "tree": "/assets/tree_v2.png",
     "cloud": "/assets/cloud.png",
-    "potion": "/assets/potion.png",
+    "potion": "/assets/med_kit.png",
     "meteor": "/assets/meteor.png",
     "grass": "/assets/grass_tuft.png"
   },
