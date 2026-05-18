@@ -2,6 +2,12 @@
   "textures": {
     "ground": "/assets/ground.png"
   },
+  "sprites": {
+    "tree": "/assets/tree.png",
+    "cloud": "/assets/cloud.png",
+    "potion": "/assets/potion.png",
+    "meteor": "/assets/meteor.png"
+  },
   "sky": {
     "top": "#1a4a82",
     "bottom": "#86c8f9"
