@@ -6,7 +6,8 @@
     "tree": "/assets/tree.png",
     "cloud": "/assets/cloud.png",
     "potion": "/assets/potion.png",
-    "meteor": "/assets/meteor.png"
+    "meteor": "/assets/meteor.png",
+    "grass": "/assets/grass_tuft.png"
   },
   "sky": {
     "top": "#1a4a82",

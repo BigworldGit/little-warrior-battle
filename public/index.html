@@ -80,20 +80,22 @@
 
         /* Health Bars */
         .hud-top { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; justify-content: space-between; gap: 16px; }
-        .health-container { flex: 1; max-width: 40%; }
-        .health-name { font-size: 13px; font-weight: 600; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; }
-        .health-name.enemy { text-align: right; color: #ff6b6b; }
+        .health-container { flex: 1; max-width: 320px; }
+        .health-container.enemy { text-align: right; }
+        .health-name { font-size: 13px; font-weight: 900; margin-bottom: 6px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .health-name.enemy { color: #ff6b6b; }
         .health-name.ally { color: #69db7c; }
         .health-bar-wrap {
             height: 24px; border-radius: 12px; overflow: hidden; position: relative;
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
         .health-bar-fill {
             height: 100%; border-radius: 12px; transition: width 0.4s ease;
             position: relative;
         }
         .health-bar-fill.ally { background: linear-gradient(90deg, #51cf66, #94d82d); }
-        .health-bar-fill.enemy { background: linear-gradient(90deg, #ff6b6b, #f06595); }
+        .health-bar-fill.enemy { background: linear-gradient(270deg, #ff6b6b, #f06595); }
         .health-bar-fill::after {
             content: ''; position: absolute; inset: 0;
             background: linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 60%);
@@ -473,11 +475,16 @@
     ground.receiveShadow = true;
     scene.add(ground);
 
-    // ── 3D Grass (InstancedMesh) ──
-    const grassGeo = new THREE.ConeGeometry(0.1, 0.4, 3);
-    grassGeo.translate(0, 0.2, 0);
-    const grassMat = new THREE.MeshStandardMaterial({ color: 0x5ebd52, roughness: 0.8, side: THREE.DoubleSide });
-    const grassCount = 15000;
+    // ── 3D Grass (Instanced Sprites) ──
+    const grassCount = 8000;
+    const grassGeo = new THREE.PlaneGeometry(0.5, 0.5);
+    grassGeo.translate(0, 0.25, 0);
+    const grassMat = new THREE.MeshStandardMaterial({ 
+        transparent: true, 
+        alphaTest: 0.5, 
+        side: THREE.DoubleSide,
+        roughness: 0.8
+    });
     const grassInst = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
     grassInst.receiveShadow = true;
     const dummy = new THREE.Object3D();
@@ -486,11 +493,8 @@
         const gz = (Math.random() - 0.5) * 40;
         const gy = (Math.sin(gx * 0.2) + Math.cos(-gz * 0.25)) * 0.4 + (Math.sin(gx * 0.8 - gz * 0.5)) * 0.1;
         dummy.position.set(gx, gy, gz);
-        dummy.rotation.y = Math.random() * Math.PI * 2;
-        dummy.rotation.x = (Math.random() - 0.5) * 0.2;
-        dummy.rotation.z = (Math.random() - 0.5) * 0.2;
-        const s = 0.5 + Math.random() * 0.8;
-        dummy.scale.set(s, s, s);
+        dummy.rotation.y = Math.random() * Math.PI;
+        dummy.scale.setScalar(0.6 + Math.random() * 0.6);
         dummy.updateMatrix();
         grassInst.setMatrixAt(i, dummy.matrix);
         grassInst.setColorAt(i, new THREE.Color().setHSL(0.28 + Math.random() * 0.05, 0.4 + Math.random() * 0.2, 0.3 + Math.random() * 0.2));
@@ -506,7 +510,7 @@
             vec2 scale; scale.x = length( vec3( modelMatrix[ 0 ].x, modelMatrix[ 0 ].y, modelMatrix[ 0 ].z ) ); scale.y = length( vec3( modelMatrix[ 1 ].x, modelMatrix[ 1 ].y, modelMatrix[ 1 ].z ) );
             mvPosition.xy += position.xy * scale; gl_Position = projectionMatrix * mvPosition; }`,
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
-            void main() { vec4 tex = texture2D(map, vUv); if (length(tex.rgb) < 0.1) discard; gl_FragColor = tex; }`
+            void main() { vec4 tex = texture2D(map, vUv); if (tex.a < 0.5 || length(tex.rgb) < 0.05) discard; gl_FragColor = tex; }`
     };
 
     fetch('/assets/ai/manifest.json')
@@ -527,9 +531,13 @@
                     textureLoader.load(url, tex => {
                         tex.colorSpace = THREE.SRGBColorSpace;
                         loadedSprites[key] = tex;
+                        if (key === 'grass') {
+                            grassMat.map = tex;
+                            grassMat.needsUpdate = true;
+                        }
                         if (key === 'tree') {
                             trees.forEach(t => {
-                                const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex } }, vertexShader: spriteShader.vertexShader, fragmentShader: spriteShader.fragmentShader });
+                                const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex } }, vertexShader: spriteShader.vertexShader, fragmentShader: spriteShader.fragmentShader, depthWrite: true, depthTest: true });
                                 const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), mat);
                                 mesh.position.copy(t.position);
                                 mesh.position.y = 4;
@@ -567,15 +575,16 @@
     scene.add(ring);
 
     // ── Soft stone path and magical arena accents ──
-    const stoneMat = new THREE.MeshStandardMaterial({ color: 0xb9d2d6, roughness: 0.82, metalness: 0.02 });
-    const path = new THREE.Mesh(new THREE.BoxGeometry(27, 0.05, 5.2), stoneMat);
+    const pathMat = new THREE.MeshStandardMaterial({ color: 0x4d5d53, roughness: 0.9, metalness: 0.1 });
+    const path = new THREE.Mesh(new THREE.BoxGeometry(27, 0.05, 5.2), pathMat);
     path.position.y = 0.015;
     path.receiveShadow = true;
     scene.add(path);
+    // ... rest of loop ...
     for (let i = -6; i <= 6; i++) {
         const seam = new THREE.Mesh(
             new THREE.BoxGeometry(0.035, 0.07, 5.35),
-            new THREE.MeshBasicMaterial({ color: 0x7f9ca2, transparent: true, opacity: 0.28 })
+            new THREE.MeshBasicMaterial({ color: 0x223322, transparent: true, opacity: 0.15 })
         );
         seam.position.set(i * 2, 0.06, 0);
         scene.add(seam);
@@ -1096,10 +1105,31 @@
                 const s = 0.7 + t * 2.2;
                 e.mesh.scale.set(s, s, s);
             } else if (e.type === 'arrow') {
+                const prevX = e.mesh.position.x;
                 e.mesh.position.add(e.vel.clone().multiplyScalar(dt));
                 e.mesh.position.y += Math.sin(t * Math.PI) * 0.012;
                 e.mesh.scale.setScalar(1 + t * 0.18);
                 if (e.light) e.light.position.copy(e.mesh.position);
+                
+                // Collision detection with opponent
+                const arrowX = e.mesh.position.x;
+                const oppX = remotePlayer.x;
+                const weapon = weaponData[localPlayer.weapon];
+                if (!e.hit && Math.abs(arrowX - oppX) < 0.8 && e.mesh.position.y < 2.5 && e.mesh.position.y > 0.5) {
+                    e.hit = true;
+                    const dmg = weapon.power;
+                    socket.emit('gameAction', { roomId, action: { type: 'hit', damage: dmg } });
+                    if (char2) { spawnHitEffect(char2.position); cameraShake(0.15); }
+                    remotePlayer.health = Math.max(0, remotePlayer.health - dmg);
+                    remotePlayer.hurt = true;
+                    updateHealthUI('opponent');
+                    setTimeout(() => { remotePlayer.hurt = false; }, 300);
+                    if (remotePlayer.health <= 0) endGame(true);
+                    
+                    // Remove arrow early on hit
+                    e.life = e.maxLife; 
+                }
+
                 e.mesh.children.forEach(child => {
                     if (child.material?.opacity !== undefined) child.material.opacity = Math.max(0, 0.46 * (1 - t));
                 });
@@ -1403,6 +1433,22 @@
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('waitingScreen').style.display = 'none';
         document.getElementById('uiOverlay').style.display = 'block';
+
+        if (myPlayerNum === 2) {
+            // Swap health/weapon card order in DOM to match right-side start
+            const hudTop = document.querySelector('.hud-top');
+            const hContainers = hudTop.querySelectorAll('.health-container');
+            hudTop.appendChild(hContainers[0]); // Move P1 to end (right)
+            
+            const wPanel = document.querySelector('.weapon-panel');
+            const wCards = wPanel.querySelectorAll('.weapon-card');
+            wPanel.appendChild(wCards[0]); // Move P1 card to end (right)
+
+            document.getElementById('playerWeaponCard').classList.remove('ally');
+            document.getElementById('playerWeaponCard').classList.add('enemy');
+            document.getElementById('opponentWeaponCard').classList.remove('enemy');
+            document.getElementById('opponentWeaponCard').classList.add('ally');
+        }
 
         if (myPlayerNum === 1) {
             localPlayer.x = -5; localPlayer.z = COMBAT_Z; remotePlayer.x = 5; remotePlayer.targetX = 5; remotePlayer.z = COMBAT_Z;
