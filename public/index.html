@@ -1223,6 +1223,7 @@
                 const light = new THREE.PointLight(0xff8a00, 1, 5);
                 g.add(light);
             }
+        }
         return g;
     }
 
@@ -1443,17 +1444,21 @@
         if (myPlayerNum === 2) {
             // Swap health/weapon card order in DOM to match right-side start
             const hudTop = document.querySelector('.hud-top');
-            const hContainers = hudTop.querySelectorAll('.health-container');
-            hudTop.appendChild(hContainers[0]); // Move P1 to end (right)
+            if (hudTop) {
+                const hContainers = hudTop.querySelectorAll('.health-container');
+                if (hContainers.length >= 2) hudTop.appendChild(hContainers[0]);
+            }
             
             const wPanel = document.querySelector('.weapon-panel');
-            const wCards = wPanel.querySelectorAll('.weapon-card');
-            wPanel.appendChild(wCards[0]); // Move P1 card to end (right)
+            if (wPanel) {
+                const wCards = wPanel.querySelectorAll('.weapon-card');
+                if (wCards.length >= 2) wPanel.appendChild(wCards[0]);
+            }
 
-            document.getElementById('playerWeaponCard').classList.remove('ally');
-            document.getElementById('playerWeaponCard').classList.add('enemy');
-            document.getElementById('opponentWeaponCard').classList.remove('enemy');
-            document.getElementById('opponentWeaponCard').classList.add('ally');
+            const pWCard = document.getElementById('playerWeaponCard');
+            const oWCard = document.getElementById('opponentWeaponCard');
+            if (pWCard) { pWCard.classList.remove('ally'); pWCard.classList.add('enemy'); }
+            if (oWCard) { oWCard.classList.remove('enemy'); oWCard.classList.add('ally'); }
         }
 
         if (myPlayerNum === 1) {
