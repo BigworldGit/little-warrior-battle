@@ -215,11 +215,8 @@
             background: linear-gradient(135deg, #fff, #ffd166);
             border: 1px solid rgba(255,255,255,0.65); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
         }
-        @media (min-width: 801px) {
+        @media (min-width: 0px) {
             .key-hint { display: flex !important; }
-        }
-        @media (max-width: 800px) {
-            .key-hint { display: none !important; }
         }
         .btn-row { display: flex; justify-content: center; gap: 8px; }
 
@@ -410,24 +407,22 @@
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
-    // Environment for PBR (AAA look)
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    scene.environment = pmremGenerator.fromScene(new THREE.Scene()).texture; // Will update with sky
+    // Environment Mapping temporarily disabled to debug black screen
+    // const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    // pmremGenerator.compileEquirectangularShader();
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xb7c9ff, 0.42));
-    const hemi = new THREE.HemisphereLight(0xa7d8ff, 0x7ab26f, 0.72);
+    // Lighting (Boosted for visibility)
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff4df, 1.85);
-    sun.position.set(8, 16, 6);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+    sun.position.set(10, 20, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
     sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
-    sun.shadow.bias = -0.00008;
     scene.add(sun);
-    const rimLight = new THREE.DirectionalLight(0x9edcff, 0.72);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
     rimLight.position.set(-8, 5, -10);
     scene.add(rimLight);
 
@@ -499,34 +494,12 @@
 
     const grassMat = new THREE.MeshStandardMaterial({ 
         transparent: true, 
-        alphaTest: 0.5, 
+        alphaTest: 0.15, 
         side: THREE.DoubleSide,
-        roughness: 0.6,
-        onBeforeCompile: (shader) => {
-            shader.uniforms.uTime = { value: 0 };
-            shader.uniforms.uWindNoise = { value: null };
-            shader.vertexShader = `
-                uniform float uTime;
-                uniform sampler2D uWindNoise;
-                varying float vHeight;
-                \n` + shader.vertexShader.replace(
-                '#include <begin_vertex>',
-                `#include <begin_vertex>
-                vec2 worldUV = (instanceMatrix * vec4(position, 1.0)).xz * 0.05;
-                float noise = texture2D(uWindNoise, worldUV + uTime * 0.05).r;
-                float sway = (sin(uTime * 2.0 + noise * 10.0) * 0.15 + noise * 0.2) * uv.y;
-                transformed.x += sway;
-                transformed.z += sway * 0.5;
-                vHeight = uv.y;`
-            );
-            shader.fragmentShader = `varying float vHeight; \n` + shader.fragmentShader.replace(
-                '#include <color_fragment>',
-                `#include <color_fragment>
-                diffuseColor.rgb = mix(diffuseColor.rgb * 0.4, diffuseColor.rgb * 1.2, vHeight);`
-            );
-            grassMat.userData.shader = shader;
-        }
+        roughness: 0.8,
+        color: 0x5ebd52
     });
+    // Wind animation will be handled by simple rotation in animate loop if shader is too risky for now
     const grassInst = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
     grassInst.receiveShadow = true;
     const grassDummy = new THREE.Object3D();
@@ -553,9 +526,8 @@
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
             void main() { 
                 vec4 tex = texture2D(map, vUv); 
-                // Discard black background from AI generated images
-                if (length(tex.rgb) < 0.08 || tex.a < 0.1) discard; 
-                gl_FragColor = vec4(tex.rgb, 1.0); 
+                if (tex.a < 0.1) discard; 
+                gl_FragColor = tex; 
             }`
     };
 
@@ -612,8 +584,11 @@
             if (manifest.sky?.top && manifest.sky?.bottom) {
                 skyMat.uniforms.topColor.value.set(manifest.sky.top);
                 skyMat.uniforms.bottomColor.value.set(manifest.sky.bottom);
-                scene.environment = pmremGenerator.fromScene(scene).texture;
             }
+            // Generate environment once after everything is likely loaded
+            setTimeout(() => {
+                scene.environment = pmremGenerator.fromScene(scene).texture;
+            }, 500);
             if (manifest.palette?.sun) sun.color.set(manifest.palette.sun);
             if (manifest.palette?.rim) rimLight.color.set(manifest.palette.rim);
         })
@@ -661,12 +636,11 @@
     ═══════════════════════════════════════════ */
     function createCharacter(color) {
         const group = new THREE.Group();
-        const armorMat = new THREE.MeshPhysicalMaterial({ 
-            color: 0xdddddd, roughness: 0.15, metalness: 0.95, 
-            clearcoat: 1.0, envMapIntensity: 1.8
+        const armorMat = new THREE.MeshStandardMaterial({ 
+            color: 0xcccccc, roughness: 0.2, metalness: 0.8
         });
-        const clothMat = new THREE.MeshPhysicalMaterial({ color, roughness: 0.8, side: THREE.DoubleSide });
-        const skinMat = new THREE.MeshPhysicalMaterial({ color: 0xffdbac, roughness: 0.45 });
+        const clothMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide });
+        const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.5 });
 
         // ── Torso & Armor ──
         const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.7, 4, 12), armorMat);
@@ -739,6 +713,7 @@
         };
         return group;
     }
+
     function makeArrowMesh(color, accent, length = 1.15) {
         const g = new THREE.Group();
         const shaft = new THREE.Mesh(
