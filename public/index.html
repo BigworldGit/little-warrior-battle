@@ -218,6 +218,10 @@
         @media (min-width: 0px) {
             .key-hint { display: flex !important; }
         }
+        .act-btn#weaponBtn .key-hint::after { content: 'Q'; }
+        .act-btn#dodgeBtn .key-hint::after { content: 'W'; }
+        .act-btn#attackBtn .key-hint::after { content: 'E'; }
+        .key-hint span { display: none; }
         .btn-row { display: flex; justify-content: center; gap: 8px; }
 
         /* Connection */
@@ -338,10 +342,10 @@
         </div>
 
         <div class="action-zone">
-            <div class="btn-row"><div class="act-btn" id="weaponBtn"><div class="cooldown-overlay" id="weaponCdOverlay"></div>🎲<span class="cooldown-label" id="weaponCooldown">5s</span><span class="key-hint">E</span></div></div>
+            <div class="btn-row"><div class="act-btn" id="weaponBtn"><div class="cooldown-overlay" id="weaponCdOverlay"></div>🎲<span class="cooldown-label" id="weaponCooldown">5s</span><span class="key-hint"></span></div></div>
             <div class="btn-row">
-                <div class="act-btn" id="attackBtn">⚔️<span class="key-hint">J</span></div>
-                <div class="act-btn" id="dodgeBtn">🏃<span class="key-hint">K</span></div>
+                <div class="act-btn" id="attackBtn">⚔️<span class="key-hint"></span></div>
+                <div class="act-btn" id="dodgeBtn">🏃<span class="key-hint"></span></div>
             </div>
         </div>
 
@@ -1580,14 +1584,14 @@
 
     document.addEventListener('keydown', (e) => {
         if (!gameStarted) return;
-        switch(e.key) {
-            case 'ArrowLeft': case 'a': case 'A': keys.left = true; break;
-            case 'ArrowRight': case 'd': case 'D': keys.right = true; break;
-            case 'ArrowUp': case 'w': case 'W': keys.up = true; break;
-            case 'ArrowDown': case 's': case 'S': keys.down = true; break;
-            case ' ': case 'j': case 'J': e.preventDefault(); doAttack(); break;
-            case 'Shift': case 'k': case 'K': e.preventDefault(); doDodge(); break;
-            case 'e': case 'E': e.preventDefault(); doWeaponSwitch(); break;
+        switch(e.key.toLowerCase()) {
+            case 'arrowleft': case 'a': keys.left = true; break;
+            case 'arrowright': case 'd': keys.right = true; break;
+            case 'arrowup': case 'w': keys.up = true; break;
+            case 'arrowdown': case 's': keys.down = true; break;
+            case 'e': e.preventDefault(); doAttack(); break;
+            case 'w': e.preventDefault(); doDodge(); break;
+            case 'q': e.preventDefault(); doWeaponSwitch(); break;
         }
     });
     document.addEventListener('keyup', (e) => {

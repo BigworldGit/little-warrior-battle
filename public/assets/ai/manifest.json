@@ -4,12 +4,12 @@
     "noise": "/assets/wind_noise.png"
   },
   "sprites": {
-    "tree": "/assets/tree_v4.png",
+    "tree": "/assets/tree_v5.png",
     "cloud": "/assets/cloud.png",
     "potion": "/assets/med_kit.png",
     "meteor": "/assets/meteor.png",
     "grass": "/assets/grass_tuft.png",
-    "face": "/assets/hero_face_v2.png"
+    "face": "/assets/hero_face_v3.png"
   },
   "sky": {
     "top": "#1a4a82",
