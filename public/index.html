@@ -435,17 +435,17 @@
     // pmremGenerator.compileEquirectangularShader();
 
     // Lighting (Boosted for visibility)
-    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4)); // Brighter ambient
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+    const sun = new THREE.DirectionalLight(0xffffff, 2.5); // Brighter sun
     sun.position.set(10, 20, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
     sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
     scene.add(sun);
-    const rimLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const rimLight = new THREE.DirectionalLight(0xffffff, 1.0);
     rimLight.position.set(-8, 5, -10);
     scene.add(rimLight);
 
@@ -519,8 +519,20 @@
         transparent: true, 
         alphaTest: 0.15, 
         side: THREE.DoubleSide,
-        roughness: 0.8,
-        color: 0x5ebd52
+        roughness: 0.6,
+        color: 0x88ff77, // Brighter base color
+        onBeforeCompile: (shader) => {
+            shader.vertexShader = `varying float vHeight; \n` + shader.vertexShader.replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>
+                vHeight = uv.y;`
+            );
+            shader.fragmentShader = `varying float vHeight; \n` + shader.fragmentShader.replace(
+                '#include <color_fragment>',
+                `#include <color_fragment>
+                diffuseColor.rgb = mix(diffuseColor.rgb * 0.4, diffuseColor.rgb * 1.5, vHeight);`
+            );
+        }
     });
     // Wind animation will be handled by simple rotation in animate loop if shader is too risky for now
     const grassInst = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
@@ -549,8 +561,8 @@
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
             void main() { 
                 vec4 tex = texture2D(map, vUv); 
-                // Discard dark background from AI images (black is ~0,0,0)
-                if (dot(tex.rgb, vec3(0.299, 0.587, 0.114)) < 0.05) discard; 
+                // Discard only the very darkest pixels (the background)
+                if (dot(tex.rgb, vec3(0.299, 0.587, 0.114)) < 0.015) discard; 
                 gl_FragColor = vec4(tex.rgb, 1.0); 
             }`
     };
@@ -687,9 +699,9 @@
         if (loadedSprites['face']) {
             const facePlane = new THREE.Mesh(
                 new THREE.PlaneGeometry(0.42, 0.42),
-                new THREE.MeshBasicMaterial({ map: loadedSprites['face'], transparent: true, alphaTest: 0.3 })
+                new THREE.MeshBasicMaterial({ map: loadedSprites['face'], transparent: true, alphaTest: 0.1 })
             );
-            facePlane.position.set(0, 2.4, 0.26);
+            facePlane.position.set(0, 2.4, 0.29); // Moved outside head sphere
             group.add(facePlane);
         }
 
