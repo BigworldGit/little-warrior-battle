@@ -1289,47 +1289,57 @@
             const swing = Math.sin(Math.min(1, release) * Math.PI);
 
             if (weapon.kind === 'bow') {
-                d.armL.rotation.z = 0.85;
-                d.armL.rotation.x = -0.42;
-                d.armR.rotation.z = -1.35 + windup * 0.28;
-                d.armR.rotation.x = -0.86;
-                d.handR.position.set(0.5 - windup * 0.22, 1.55, 0.48);
-                d.weaponGroup.position.set(0.74, 2.06, 0.62);
-                d.weaponGroup.rotation.set(0, 0, -0.18 + windup * 0.2);
+                if (d.armL) { d.armL.rotation.z = 0.85; d.armL.rotation.x = -0.42; }
+                if (d.armR) { d.armR.rotation.z = -1.35 + windup * 0.28; d.armR.rotation.x = -0.86; }
+                if (d.handR) d.handR.position.set(0.5 - windup * 0.22, 1.55, 0.48);
+                if (d.weaponGroup) {
+                    d.weaponGroup.position.set(0.52, 1.6, 0.4);
+                    d.weaponGroup.rotation.set(0, 0, -0.18 + windup * 0.2);
+                }
                 char.rotation.z = state.facingRight ? -0.08 : 0.08;
             } else if (weapon.kind === 'heavy') {
-                d.armR.rotation.z = -1.25 - swing * 0.9;
-                d.armR.rotation.x = -1.2 + swing * 1.3;
-                d.armR.position.z = 0.2 + swing * 0.4;
-                d.handR.position.set(0.72, 1.38 + swing * 0.28, 0.24 + swing * 0.54);
-                d.shoulderR.rotation.x = -0.7 - swing * 0.55;
-                d.weaponGroup.position.set(0.76 + swing * 0.18, 2.05 - swing * 0.34, 0.56 + swing * 0.35);
-                d.weaponGroup.rotation.set(-0.9 + swing * 1.55, 0, -0.55 + swing * 0.65);
+                if (d.armR) {
+                    d.armR.rotation.z = -1.25 - swing * 0.9;
+                    d.armR.rotation.x = -1.2 + swing * 1.3;
+                    d.armR.position.z = 0.2 + swing * 0.4;
+                }
+                if (d.handR) d.handR.position.set(0.72, 1.38 + swing * 0.28, 0.24 + swing * 0.54);
+                if (d.shoulderR) d.shoulderR.rotation.x = -0.7 - swing * 0.55;
+                if (d.weaponGroup) {
+                    d.weaponGroup.position.set(0.76 + swing * 0.18, 2.05 - swing * 0.34, 0.56 + swing * 0.35);
+                    d.weaponGroup.rotation.set(-0.9 + swing * 1.55, 0, -0.55 + swing * 0.65);
+                }
                 char.position.y = Math.sin(Math.min(1, release) * Math.PI) * 0.09;
                 char.rotation.z = state.facingRight ? -0.22 * swing : 0.22 * swing;
             } else if (weapon.kind === 'polearm') {
-                d.armR.rotation.z = -0.62;
-                d.armR.rotation.x = -0.72;
-                d.handR.position.set(0.78 + swing * 0.22, 1.42, 0.48 + swing * 0.46);
-                d.shoulderR.rotation.x = -0.3;
-                d.weaponGroup.position.set(0.9, 1.95, 0.72 + swing * 0.68);
-                d.weaponGroup.rotation.set(0.38, 0, 0);
+                if (d.armR) { d.armR.rotation.z = -0.62; d.armR.rotation.x = -0.72; }
+                if (d.handR) d.handR.position.set(0.78 + swing * 0.22, 1.42, 0.48 + swing * 0.46);
+                if (d.shoulderR) d.shoulderR.rotation.x = -0.3;
+                if (d.weaponGroup) {
+                    d.weaponGroup.position.set(0.9, 1.95, 0.72 + swing * 0.68);
+                    d.weaponGroup.rotation.set(0.38, 0, 0);
+                }
             } else if (weapon.kind === 'magic') {
-                d.armR.rotation.z = -1.4;
-                d.armR.rotation.x = -0.4 - windup * 0.6 + release * 0.4;
-                d.handR.position.set(0.55, 1.6, 0.65);
-                d.weaponGroup.position.set(0.65, 2.15, 0.85);
-                d.weaponGroup.rotation.set(0, windup * Math.PI * 2, -0.2);
+                if (d.armR) { d.armR.rotation.z = -1.4; d.armR.rotation.x = -0.4 - windup * 0.6 + release * 0.4; }
+                if (d.handR) d.handR.position.set(0.55, 1.6, 0.65);
+                if (d.weaponGroup) {
+                    d.weaponGroup.position.set(0.65, 2.15, 0.85);
+                    d.weaponGroup.rotation.set(0, windup * Math.PI * 2, -0.2);
+                }
             } else { // melee/fist
                 const isPunch = weapon.name.includes('拳');
-                d.armR.rotation.z = -0.8 - swing * 0.5;
-                d.armR.rotation.x = -0.3 + swing * (isPunch ? 1.0 : 1.2);
-                d.handR.position.set(0.65, 1.45, 0.4 + swing * (isPunch ? 0.4 : 0.2));
-                d.weaponGroup.position.set(0.65, 1.95, 0.5 + swing * (isPunch ? 0.3 : 0.2));
-                d.weaponGroup.rotation.set(0, 0, -0.4 + swing * 1.2);
+                if (d.armR) {
+                    d.armR.rotation.z = -0.8 - swing * 0.5;
+                    d.armR.rotation.x = -0.3 + swing * (isPunch ? 1.0 : 1.2);
+                }
+                if (d.handR) d.handR.position.set(0.65, 1.45, 0.4 + swing * (isPunch ? 0.4 : 0.2));
+                if (d.weaponGroup) {
+                    d.weaponGroup.position.set(0.65, 1.95, 0.5 + swing * (isPunch ? 0.3 : 0.2));
+                    d.weaponGroup.rotation.set(0, 0, -0.4 + swing * 1.2);
+                }
                 char.rotation.z = state.facingRight ? -0.1 * swing : 0.1 * swing;
             }
-            d.cape.rotation.x = 0.34 + swing * 0.12;
+            if (d.cape) d.cape.rotation.x = 0.34 + swing * 0.12;
         } else if (state.dodging) {
             // Dodge lean
             char.rotation.z = state.facingRight ? -0.4 : 0.4;
@@ -1337,29 +1347,31 @@
         } else {
             // Idle / walk
             const bob = bounce;
-            d.head.position.y = 2.54 + bob;
-            d.head.rotation.z = 0;
-            d.helmet.position.y = 2.72 + bob;
-            d.crest.position.y = 3.04 + bob;
-            d.body.position.y = 1.68 + bob * 0.5;
-            d.chest.position.y = 1.9 + bob * 0.45;
+            if (d.head) { d.head.position.y = 2.4 + bob; d.head.rotation.z = 0; }
+            if (d.helmet) d.helmet.position.y = 2.45 + bob;
+            if (d.crest) d.crest.position.y = 2.75 + bob;
+            if (d.body) d.body.position.y = 1.4 + bob * 0.5;
+            if (d.chest) d.chest.position.y = 1.65 + bob * 0.45;
 
             const legSwing = sway;
-            d.legL.rotation.x = legSwing;
-            d.legR.rotation.x = -legSwing;
-            d.bootL.position.z = 0.08 + Math.max(0, -legSwing) * 0.12;
-            d.bootR.position.z = 0.08 + Math.max(0, legSwing) * 0.12;
+            if (d.legL) d.legL.rotation.x = legSwing;
+            if (d.legR) d.legR.rotation.x = -legSwing;
+            if (d.bootL) d.bootL.position.z = 0.08 + Math.max(0, -legSwing) * 0.12;
+            if (d.bootR) d.bootR.position.z = 0.08 + Math.max(0, legSwing) * 0.12;
 
             const armSwing = Math.sin(time * (isMoving ? 10 : 2.5)) * (isMoving ? 0.42 : 0.1);
-            d.armL.rotation.x = -armSwing;
-            d.armL.rotation.z = 0.34;
-            d.armR.rotation.x = armSwing;
-            d.armR.rotation.z = -0.3;
-            d.armR.position.z = 0;
-            d.handR.position.set(0.62, 1.34, 0.06);
-            d.shoulderR.rotation.x = 0;
-            d.weaponGroup.position.set(0.6, 2.0, 0.3);
-            d.weaponGroup.rotation.set(0, 0, 0);
+            if (d.armL) { d.armL.rotation.x = -armSwing; d.armL.rotation.z = 0.12; }
+            if (d.armR) { 
+                d.armR.rotation.x = armSwing; 
+                d.armR.rotation.z = -0.12;
+                d.armR.position.z = 0;
+            }
+            if (d.handR) d.handR.position.set(0.55, 1.3, 0.1);
+            if (d.shoulderR) d.shoulderR.rotation.x = 0;
+            if (d.weaponGroup) {
+                d.weaponGroup.position.set(0.55, 1.3, 0.2);
+                d.weaponGroup.rotation.set(0, 0, 0);
+            }
             char.rotation.z = 0;
         }
 
