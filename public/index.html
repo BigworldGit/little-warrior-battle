@@ -367,6 +367,39 @@
         alert("脚本执行错误: " + msg);
     };
     
+    /* ═══════════════════════════════════════════
+       AUDIO MANAGER
+    ═══════════════════════════════════════════ */
+    const audio = {
+        bgm: new Audio('https://www.chosic.com/wp-content/uploads/2021/04/Heroism.mp3'),
+        sfx: {
+            attack: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-sword-slash-swoosh-1476.mp3'),
+            hit: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-samurai-sword-impact-1478.mp3'),
+            dodge: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-fast-whoosh-transition-1502.mp3'),
+            switch: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-click-melodic-tone-1129.mp3'),
+            drop: new Audio('https://assets.mixkit.co/sfx/preview/mixkit-game-level-completed-2059.mp3')
+        },
+        init() {
+            this.bgm.loop = true;
+            this.bgm.volume = 0.45;
+            Object.values(this.sfx).forEach(s => s.volume = 0.6);
+        },
+        play(name) {
+            const sound = this.sfx[name];
+            if (sound) {
+                sound.currentTime = 0;
+                sound.play().catch(() => {});
+            }
+        },
+        startBgm() {
+            this.bgm.play().catch(() => {
+                // Auto-play might be blocked, wait for next click
+                window.addEventListener('click', () => this.bgm.play(), { once: true });
+            });
+        }
+    };
+    audio.init();
+
     // Join button setup (Critical UI)
     const playerNameInput = document.getElementById('playerName');
     const savedPlayerName = localStorage.getItem('littleWarrior.playerName');
@@ -374,6 +407,7 @@
 
     document.getElementById('joinBtn').addEventListener('click', () => {
         console.log("Join button clicked");
+        audio.startBgm();
         const name = playerNameInput.value.trim() || '匿名玩家';
         localStorage.setItem('littleWarrior.playerName', name);
         document.getElementById('status').textContent = '正在连接...';
@@ -748,6 +782,7 @@
             shoulderL: armL.s, shoulderR: armR.s, weaponGroup, contact,
             mat: armorMat, matLight: armorMat, baseColor: color
         };
+        group.scale.setScalar(1.25); // Make characters larger
         return group;
     }
 
@@ -910,6 +945,7 @@
     };
 
     function spawnHitEffect(pos) {
+        audio.play('hit');
         const ring = new THREE.Mesh(fxGeos.ringSmall, fxMats.hitRing.clone());
         ring.position.copy(pos); ring.position.y = 1.5;
         ring.rotation.x = -Math.PI / 2;
@@ -1253,6 +1289,7 @@
                 drop.mesh.position.y += Math.sin(time * 4 + drop.mesh.position.x) * 0.004;
             }
             if (drop.mesh.position.y <= 0.65 && !drop.landedAt) {
+                audio.play('drop');
                 drop.mesh.position.y = 0.65;
                 drop.landedAt = time;
                 if (drop.type === 'meteor') {
@@ -1670,6 +1707,7 @@
 
     function doAttack() {
         if (!localPlayer.attacking && gameStarted && !opponentLeft) {
+            audio.play('attack');
             const weapon = weaponData[localPlayer.weapon];
             localPlayer.attacking = true;
             localPlayer.attackStart = clock.getElapsedTime();
@@ -1695,6 +1733,7 @@
 
     function doDodge() {
         if (!localPlayer.dodging && gameStarted && !opponentLeft) {
+            audio.play('dodge');
             localPlayer.dodging = true;
             localPlayer.vx = localPlayer.facingRight ? -3 : 3;
             socket.emit('gameAction', { roomId, action: { type: 'dodge', vx: localPlayer.vx } });
@@ -1706,6 +1745,7 @@
         if (gameStarted && !opponentLeft) {
             const time = clock.getElapsedTime();
             if (time < nextWeaponAt) return;
+            audio.play('switch');
             localPlayer.weapon = getRandomWeaponIndex();
             nextWeaponAt = time + weaponCooldownSeconds;
             socket.emit('gameAction', { roomId, action: { type: 'weapon', weapon: localPlayer.weapon } });
