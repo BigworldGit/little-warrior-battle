@@ -1,14 +1,16 @@
 {
   "textures": {
     "ground": "/assets/ground.png",
-    "noise": "/assets/wind_noise.png"
+    "noise": "/assets/wind_noise.png",
+    "armor": "/assets/armor_tex.png"
   },
   "sprites": {
-    "tree": "/assets/tree_v2.png",
+    "tree": "/assets/tree_v3.png",
     "cloud": "/assets/cloud.png",
     "potion": "/assets/med_kit.png",
     "meteor": "/assets/meteor.png",
-    "grass": "/assets/grass_tuft.png"
+    "grass": "/assets/grass_tuft.png",
+    "face": "/assets/hero_face.png"
   },
   "sky": {
     "top": "#1a4a82",
