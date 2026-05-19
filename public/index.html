@@ -209,19 +209,18 @@
         .act-btn.cooldown .cooldown-label { display: flex; }
         .act-btn:active { transform: scale(0.88); background: rgba(255,255,255,0.15); }
         .key-hint {
-            display: none; position: absolute; right: -4px; bottom: -4px; min-width: 23px; height: 23px;
-            padding: 0 6px; border-radius: 999px; align-items: center; justify-content: center;
-            font-size: 11px; font-weight: 900; letter-spacing: 0.4px; color: #1a1a2e;
-            background: linear-gradient(135deg, #fff, #ffd166);
-            border: 1px solid rgba(255,255,255,0.65); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            position: absolute; right: -8px; bottom: -8px; min-width: 24px; height: 24px;
+            padding: 0 4px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 900; color: #1a1a2e;
+            background: #ffd166; border: 1px solid #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 10;
         }
-        @media (min-width: 0px) {
-            .key-hint { display: flex !important; }
+        @media (max-width: 800px) {
+            .key-hint { display: none !important; }
         }
         .act-btn#weaponBtn .key-hint::after { content: 'Q'; }
         .act-btn#dodgeBtn .key-hint::after { content: 'W'; }
         .act-btn#attackBtn .key-hint::after { content: 'E'; }
-        .key-hint span { display: none; }
         .btn-row { display: flex; justify-content: center; gap: 8px; }
 
         /* Connection */
@@ -565,9 +564,8 @@
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
             void main() { 
                 vec4 tex = texture2D(map, vUv); 
-                // Advanced chroma-keying for pure black backgrounds (AI generated)
-                float brightness = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
-                if (brightness < 0.04) discard; 
+                // Only discard absolute black or nearly black background
+                if (tex.r + tex.g + tex.b < 0.015) discard; 
                 gl_FragColor = vec4(tex.rgb, 1.0); 
             }`
     };
@@ -599,6 +597,15 @@
                         if (key === 'grass') {
                             grassMat.map = tex;
                             grassMat.needsUpdate = true;
+                        }
+                        if (key === 'face') {
+                            [char1, char2].forEach(c => {
+                                if (c && c.userData.faceMesh) {
+                                    c.userData.faceMesh.material.map = tex;
+                                    c.userData.faceMesh.material.needsUpdate = true;
+                                    c.userData.faceMesh.visible = true;
+                                }
+                            });
                         }
                         if (key === 'tree') {
                             trees.forEach(t => {
@@ -681,61 +688,45 @@
     ═══════════════════════════════════════════ */
     function createCharacter(color) {
         const group = new THREE.Group();
-        const armorMat = new THREE.MeshStandardMaterial({ 
-            color: 0xcccccc, roughness: 0.2, metalness: 0.8
-        });
+        const armorMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.2, metalness: 0.8 });
         const clothMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.5 });
         
-        // ── Torso & Armor ──
+        // ── Body & Armor ──
         const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.7, 4, 12), armorMat);
-        body.position.y = 1.4; body.castShadow = true;
-        group.add(body);
-        
+        body.position.y = 1.4; body.castShadow = true; group.add(body);
         const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.38, 0.55, 12), armorMat);
-        chest.position.y = 1.65; chest.castShadow = true;
-        group.add(chest);
-
+        chest.position.y = 1.65; chest.castShadow = true; group.add(chest);
         const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x332211 }));
         belt.position.y = 1.15; group.add(belt);
 
-        // ── Head & Helmet ──
+        // ── Head & Face ──
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), skinMat);
-        head.position.y = 2.4; head.castShadow = true;
-        group.add(head);
+        head.position.y = 2.4; head.castShadow = true; group.add(head);
 
-        // Face texture restored
-        if (loadedSprites['face']) {
-            const facePlane = new THREE.Mesh(
-                new THREE.PlaneGeometry(0.38, 0.38),
-                new THREE.MeshBasicMaterial({ map: loadedSprites['face'], transparent: true })
-            );
-            facePlane.position.set(0, 2.38, 0.3); // Precisely on visor gap
-            group.add(facePlane);
-        }
+        const faceMesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.4, 0.4),
+            new THREE.MeshBasicMaterial({ transparent: true, visible: false })
+        );
+        faceMesh.position.set(0, 2.38, 0.29); group.add(faceMesh);
+        if (loadedSprites['face']) { faceMesh.material.map = loadedSprites['face']; faceMesh.visible = true; }
 
         const visor = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12, 0, Math.PI, 0, Math.PI * 0.5), armorMat);
         visor.position.y = 2.45; visor.rotation.x = -0.2; group.add(visor);
-
         const helmetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.4, 12), armorMat);
         helmetBase.position.y = 2.5; group.add(helmetBase);
-
         const plume = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.4), clothMat);
         plume.position.set(0, 2.8, -0.1); group.add(plume);
 
-        // ── Shoulders & Arms ──
+        // ── Limbs ──
         const createShoulder = (x) => {
             const s = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), armorMat);
-            s.position.set(x, 1.9, 0); s.scale.y = 0.8;
-            group.add(s);
+            s.position.set(x, 1.9, 0); s.scale.y = 0.8; group.add(s);
             const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), armorMat);
             a.position.set(x, 1.55, 0); group.add(a);
             return { s, a };
         };
-        const armL = createShoulder(-0.55);
-        const armR = createShoulder(0.55);
-
-        // ── Legs & Boots ──
+        const armL = createShoulder(-0.55), armR = createShoulder(0.55);
         const createLeg = (x) => {
             const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.55, 4, 8), armorMat);
             l.position.set(x, 0.65, 0); group.add(l);
@@ -743,26 +734,17 @@
             b.position.set(x, 0.1, 0.1); group.add(b);
             return { l, b };
         };
-        const legL = createLeg(-0.22);
-        const legR = createLeg(0.22);
+        const legL = createLeg(-0.22), legR = createLeg(0.22);
 
-        // ── Animated Cape (Fixed clipping) ──
         const cape = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.0, 3, 5), clothMat);
-        cape.position.set(0, 1.1, -0.5); 
-        cape.rotation.x = 0.15;
-        group.add(cape);
-
-        const weaponGroup = new THREE.Group();
-        weaponGroup.position.set(0.55, 1.3, 0.2);
-        group.add(weaponGroup);
-
+        cape.position.set(0, 1.1, -0.5); cape.rotation.x = 0.15; group.add(cape);
+        const weaponGroup = new THREE.Group(); weaponGroup.position.set(0.55, 1.3, 0.2); group.add(weaponGroup);
         const contact = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false }));
-        contact.rotation.x = -Math.PI / 2; contact.position.y = 0.01;
-        group.add(contact);
+        contact.rotation.x = -Math.PI / 2; contact.position.y = 0.01; group.add(contact);
 
         group.userData = { 
             body, head, helmet: helmetBase, chest, cape, armL: armL.a, armR: armR.a, 
-            legL: legL.l, legR: legR.l, bootL: legL.b, bootR: legR.b, 
+            legL: legL.l, legR: legR.l, bootL: legL.b, bootR: legR.b, faceMesh,
             shoulderL: armL.s, shoulderR: armR.s, weaponGroup, contact,
             mat: armorMat, matLight: armorMat, baseColor: color
         };
