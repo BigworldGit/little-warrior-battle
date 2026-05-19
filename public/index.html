@@ -463,7 +463,7 @@
     });
     const skyMesh = new THREE.Mesh(skyGeo, skyMat);
     scene.add(skyMesh);
-    scene.environment = pmremGenerator.fromScene(scene).texture;
+    // scene.environment = pmremGenerator.fromScene(scene).texture;
 
     // ── Ground ──
     const groundGeo = new THREE.PlaneGeometry(60, 40, 64, 44);
@@ -610,7 +610,7 @@
             }
             // Generate environment once after everything is likely loaded
             setTimeout(() => {
-                scene.environment = pmremGenerator.fromScene(scene).texture;
+                // scene.environment = pmremGenerator.fromScene(scene).texture;
             }, 500);
             if (manifest.palette?.sun) sun.color.set(manifest.palette.sun);
             if (manifest.palette?.rim) rimLight.color.set(manifest.palette.rim);
