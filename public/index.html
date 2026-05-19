@@ -561,8 +561,9 @@
         fragmentShader: `uniform sampler2D map; varying vec2 vUv;
             void main() { 
                 vec4 tex = texture2D(map, vUv); 
-                // Discard only the very darkest pixels (the background)
-                if (dot(tex.rgb, vec3(0.299, 0.587, 0.114)) < 0.015) discard; 
+                // Advanced chroma-keying for pure black backgrounds (AI generated)
+                float brightness = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
+                if (brightness < 0.04) discard; 
                 gl_FragColor = vec4(tex.rgb, 1.0); 
             }`
     };
@@ -598,11 +599,15 @@
                         if (key === 'tree') {
                             trees.forEach(t => {
                                 const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: tex } }, vertexShader: spriteShader.vertexShader, fragmentShader: spriteShader.fragmentShader, transparent: true, depthWrite: true });
-                                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), mat);
+                                const mesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), mat);
                                 mesh.position.copy(t.position);
-                                mesh.position.y = 4;
+                                mesh.position.y = 5;
                                 scene.remove(t);
                                 scene.add(mesh);
+                                // Add a contact shadow for grounding
+                                const shadow = new THREE.Mesh(new THREE.CircleGeometry(2.5, 32), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+                                shadow.rotation.x = -Math.PI / 2; shadow.position.copy(t.position); shadow.position.y = 0.02;
+                                scene.add(shadow);
                             });
                         }
                         if (key === 'cloud') {
@@ -698,10 +703,10 @@
         // Face texture restored
         if (loadedSprites['face']) {
             const facePlane = new THREE.Mesh(
-                new THREE.PlaneGeometry(0.42, 0.42),
-                new THREE.MeshBasicMaterial({ map: loadedSprites['face'], transparent: true, alphaTest: 0.1 })
+                new THREE.PlaneGeometry(0.38, 0.38),
+                new THREE.MeshBasicMaterial({ map: loadedSprites['face'], transparent: true })
             );
-            facePlane.position.set(0, 2.4, 0.29); // Moved outside head sphere
+            facePlane.position.set(0, 2.38, 0.3); // Precisely on visor gap
             group.add(facePlane);
         }
 
