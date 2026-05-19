@@ -358,6 +358,29 @@
     </div>
 
     <script>
+    console.log("Game Script Loading...");
+    window.onerror = function(msg, url, line) {
+        console.error("CRITICAL ERROR: " + msg + " at " + url + ":" + line);
+        alert("脚本执行错误: " + msg);
+    };
+    
+    // Join button setup (Critical UI)
+    const playerNameInput = document.getElementById('playerName');
+    const savedPlayerName = localStorage.getItem('littleWarrior.playerName');
+    if (savedPlayerName) playerNameInput.value = savedPlayerName;
+
+    document.getElementById('joinBtn').addEventListener('click', () => {
+        console.log("Join button clicked");
+        const name = playerNameInput.value.trim() || '匿名玩家';
+        localStorage.setItem('littleWarrior.playerName', name);
+        document.getElementById('status').textContent = '正在连接...';
+        socket.emit('joinGame', name);
+    });
+
+    playerNameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('joinBtn').click();
+    });
+
     /* ═══════════════════════════════════════════
        NETWORK
     ═══════════════════════════════════════════ */
@@ -1775,25 +1798,6 @@
         text.style.color = iWon ? '#51cf66' : '#ff6b6b';
         screen.classList.add('show');
     }
-
-    // Join button
-    const playerNameInput = document.getElementById('playerName');
-    const savedPlayerName = localStorage.getItem('littleWarrior.playerName');
-    if (savedPlayerName) playerNameInput.value = savedPlayerName;
-
-    document.getElementById('joinBtn').addEventListener('click', () => {
-        const name = playerNameInput.value.trim() || '匿名玩家';
-        localStorage.setItem('littleWarrior.playerName', name);
-        document.getElementById('status').textContent = '正在连接...';
-        socket.emit('joinGame', name);
-    });
-    playerNameInput.addEventListener('input', () => {
-        const name = playerNameInput.value.trim();
-        if (name) localStorage.setItem('littleWarrior.playerName', name);
-    });
-    playerNameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') document.getElementById('joinBtn').click();
-    });
 
     // Resize
     window.addEventListener('resize', () => {
