@@ -4,19 +4,19 @@
     "noise": "/assets/wind_noise.png"
   },
   "sprites": {
-    "tree": "/assets/tree_v5.png",
-    "cloud": "/assets/cloud.png",
+    "tree": "/assets/tree_v5_a.png",
+    "cloud": "/assets/cloud_a.png",
     "potion": "/assets/med_kit.png",
     "meteor": "/assets/meteor.png",
-    "grass": "/assets/grass_tuft.png",
-    "face": "/assets/hero_face_v3.png"
+    "grass": "/assets/grass_tuft_a.png",
+    "face": "/assets/hero_face_a.png"
   },
   "sky": {
-    "top": "#1a4a82",
-    "bottom": "#86c8f9"
+    "top": "#2f7fd0",
+    "bottom": "#cfe9f7"
   },
   "palette": {
-    "sun": "#ffffff",
-    "rim": "#d4eeff"
+    "sun": "#fff0d0",
+    "rim": "#a8d8ff"
   }
 }
