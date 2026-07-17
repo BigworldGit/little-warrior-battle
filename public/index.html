@@ -1042,67 +1042,149 @@
     }
     const fallbackFaceTex = makeFallbackFaceTexture();
 
-    function createCharacter(color) {
+    function createCharacter(color, opts = {}) {
         const group = new THREE.Group();
-        const armorMat = new THREE.MeshStandardMaterial({ color: 0xd8dde6, roughness: 0.28, metalness: 0.75 });
-        const clothMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, side: THREE.DoubleSide });
+        const armorMat = new THREE.MeshStandardMaterial({ color: 0xe9edf5, roughness: 0.22, metalness: 0.82 });
+        const armorDark = new THREE.MeshStandardMaterial({ color: 0x97a3b6, roughness: 0.38, metalness: 0.7 });
+        const clothMat = new THREE.MeshStandardMaterial({ color, roughness: 0.82, side: THREE.DoubleSide });
+        const clothDark = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(0.5), roughness: 0.85 });
         const skinMat = new THREE.MeshStandardMaterial({ color: 0xffdbac, roughness: 0.55 });
+        const leatherMat = new THREE.MeshStandardMaterial({ color: 0x4a3120, roughness: 0.8 });
+        const trimMat = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.3, metalness: 0.9, emissive: 0xffd166, emissiveIntensity: 0.12 });
+        const blackMat = new THREE.MeshBasicMaterial({ color: 0x10121c });
 
-        // ── Body & Armor ──
-        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.7, 4, 12), armorMat);
-        body.position.y = 1.4; body.castShadow = true; group.add(body);
-        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.38, 0.55, 12), armorMat);
-        chest.position.y = 1.65; chest.castShadow = true; group.add(chest);
-        const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.12, 16), new THREE.MeshStandardMaterial({ color: 0x332211 }));
-        belt.position.y = 1.15; group.add(belt);
+        // rig：除地面阴影外的全部部件，用于整体弹跳/压缩
+        const rig = new THREE.Group();
+        group.add(rig);
 
-        // ── Head & Face ──
+        // ── 躯干：战袍 + 胸甲 + 金边 + 斜挎绶带 + 腰带 ──
+        const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.62, 4, 12), clothMat);
+        body.position.y = 1.36; body.castShadow = true; rig.add(body);
+        const chest = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.37, 0.58, 12), armorMat);
+        chest.position.y = 1.68; chest.castShadow = true; rig.add(chest);
+        const chestTrim = new THREE.Mesh(new THREE.TorusGeometry(0.41, 0.032, 8, 20), trimMat);
+        chestTrim.position.y = 1.92; chestTrim.rotation.x = Math.PI / 2; rig.add(chestTrim);
+        const sash = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.72, 0.46), clothDark);
+        sash.position.set(0, 1.64, 0.04); sash.rotation.z = 0.62; rig.add(sash);
+        const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.375, 0.375, 0.13, 16), leatherMat);
+        belt.position.y = 1.13; rig.add(belt);
+        const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.05), trimMat);
+        buckle.position.set(0, 1.13, 0.37); rig.add(buckle);
+        // 裙甲
+        for (let i = -1; i <= 1; i++) {
+            const tasset = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.05), armorDark);
+            tasset.position.set(i * 0.25, 0.97, 0.2 - Math.abs(i) * 0.07);
+            tasset.rotation.x = -0.18;
+            rig.add(tasset);
+        }
+
+        // ── 头部：皮肤 + 脸贴图 + 细节头盔 ──
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 16), skinMat);
-        head.position.y = 2.4; head.castShadow = true; group.add(head);
+        head.position.y = 2.4; head.castShadow = true; rig.add(head);
 
         const faceMesh = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.4, 0.4),
+            new THREE.PlaneGeometry(0.36, 0.36),
             new THREE.MeshBasicMaterial({ map: fallbackFaceTex, transparent: true, alphaTest: 0.1 })
         );
-        faceMesh.position.set(0, 2.38, 0.3); group.add(faceMesh);
+        faceMesh.position.set(0, 2.38, 0.27); rig.add(faceMesh);
         faceTexP.then(tex => { faceMesh.material.map = tex; faceMesh.material.needsUpdate = true; });
 
-        const visor = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12, 0, Math.PI, 0, Math.PI * 0.5), armorMat);
-        visor.position.y = 2.45; visor.rotation.x = -0.2; group.add(visor);
-        const helmetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.4, 12), armorMat);
-        helmetBase.position.y = 2.5; group.add(helmetBase);
-        const plume = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.4), clothMat);
-        plume.position.set(0, 2.8, -0.1); group.add(plume);
+        const helmetBase = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.36, 0.32, 12), armorMat);
+        helmetBase.position.y = 2.53; helmetBase.castShadow = true; rig.add(helmetBase);
+        const helmetDome = new THREE.Mesh(new THREE.SphereGeometry(0.3, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), armorMat);
+        helmetDome.position.y = 2.64; rig.add(helmetDome);
+        const brim = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.045, 8, 18), armorDark);
+        brim.position.y = 2.41; brim.rotation.x = Math.PI / 2; rig.add(brim);
+        const visorSlit = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.04, 0.05), blackMat);
+        visorSlit.position.set(0, 2.47, 0.315); rig.add(visorSlit);
+        const noseGuard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.045), armorDark);
+        noseGuard.position.set(0, 2.36, 0.325); rig.add(noseGuard);
+        // 头饰：我方羽饰 / 对手牛角
+        let crest;
+        if (opts.horns) {
+            crest = new THREE.Group();
+            [-1, 1].forEach(s => {
+                const horn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.42, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xf3e5c0, roughness: 0.5 }));
+                horn.position.set(s * 0.31, 2.78, 0);
+                horn.rotation.z = -s * 0.62;
+                crest.add(horn);
+            });
+            rig.add(crest);
+        } else {
+            crest = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.44, 0.5), clothMat);
+            crest.position.set(0, 2.9, -0.06);
+            rig.add(crest);
+        }
 
-        // ── Limbs ──
-        const createShoulder = (x) => {
-            const s = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 12), armorMat);
-            s.position.set(x, 1.9, 0); s.scale.y = 0.8; group.add(s);
-            const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), armorMat);
-            a.position.set(x, 1.55, 0); group.add(a);
-            return { s, a };
+        // ── 手臂：肩关节组(旋转轴) → 上臂 → 肘关节组 → 护腕 + 手 ──
+        const createArm = (x) => {
+            const g = new THREE.Group();
+            g.position.set(x, 1.92, 0);
+            const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.27, 12, 12), armorMat);
+            s1.scale.set(1, 0.72, 1); s1.castShadow = true; g.add(s1);
+            const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10), trimMat);
+            s2.position.set(x > 0 ? 0.05 : -0.05, 0.12, 0); s2.scale.set(1, 0.5, 1); g.add(s2);
+            const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.28, 4, 8), armorMat);
+            upper.position.set(0, -0.24, 0); g.add(upper);
+            const f = new THREE.Group();
+            f.position.set(0, -0.44, 0);
+            const bracer = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.24, 10), armorDark);
+            bracer.position.set(0, -0.1, 0); f.add(bracer);
+            const hand = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 8), leatherMat);
+            hand.position.set(0, -0.3, 0); f.add(hand);
+            g.add(f);
+            rig.add(g);
+            return { g, f, s: s1 };
         };
-        const armL = createShoulder(-0.55), armR = createShoulder(0.55);
+        const armL = createArm(-0.57), armR = createArm(0.57);
+
+        // ── 腿：髋关节组 → 大腿 + 膝甲 → 小腿组 → 胫甲 + 靴 ──
         const createLeg = (x) => {
-            const l = new THREE.Mesh(new THREE.CapsuleGeometry(0.14, 0.55, 4, 8), armorMat);
-            l.position.set(x, 0.65, 0); group.add(l);
-            const b = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.45), armorMat);
-            b.position.set(x, 0.1, 0.1); group.add(b);
-            return { l, b };
+            const hip = new THREE.Group();
+            hip.position.set(x, 0.86, 0);
+            const thigh = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.26, 4, 8), clothDark);
+            thigh.position.set(0, -0.18, 0); hip.add(thigh);
+            const knee = new THREE.Mesh(new THREE.SphereGeometry(0.145, 10, 8), armorMat);
+            knee.position.set(0, -0.34, 0.03); hip.add(knee);
+            const shin = new THREE.Group();
+            shin.position.set(0, -0.36, 0);
+            const greave = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.3, 10), armorDark);
+            greave.position.set(0, -0.17, 0); shin.add(greave);
+            const boot = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.16, 0.42), leatherMat);
+            boot.position.set(0, -0.36, 0.07); shin.add(boot);
+            const toe = new THREE.Mesh(new THREE.BoxGeometry(0.23, 0.09, 0.12), trimMat);
+            toe.position.set(0, -0.4, 0.28); shin.add(toe);
+            hip.add(shin);
+            rig.add(hip);
+            return { hip, shin };
         };
         const legL = createLeg(-0.22), legR = createLeg(0.22);
 
-        const cape = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.0, 3, 5), clothMat);
-        cape.position.set(0, 1.1, -0.5); cape.rotation.x = 0.15; group.add(cape);
-        const weaponGroup = new THREE.Group(); weaponGroup.position.set(0.55, 1.3, 0.2); group.add(weaponGroup);
-        const contact = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32), new THREE.MeshBasicMaterial({ color: 0x061206, transparent: true, opacity: 0.32, depthWrite: false }));
+        // ── 披风（顶点波浪动画用的基准坐标会存起来）──
+        const cape = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.95, 3, 6), clothMat);
+        cape.position.set(0, 1.15, -0.48); cape.rotation.x = 0.16;
+        cape.castShadow = true; rig.add(cape);
+        const capeBase = cape.geometry.attributes.position.array.slice();
+        const capeClasp = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), trimMat);
+        capeClasp.position.set(0, 2.02, 0.4); rig.add(capeClasp);
+
+        // ── 武器挂在右前臂，跟随手臂动作 ──
+        const weaponGroup = new THREE.Group();
+        weaponGroup.position.set(0, -0.34, 0.05);
+        weaponGroup.rotation.set(1.5, 0, 0);
+        armR.f.add(weaponGroup);
+
+        const contact = new THREE.Mesh(new THREE.CircleGeometry(0.75, 32),
+            new THREE.MeshBasicMaterial({ color: 0x061206, transparent: true, opacity: 0.32, depthWrite: false }));
         contact.rotation.x = -Math.PI / 2; contact.position.y = 0.02; group.add(contact);
 
         group.userData = {
-            body, head, helmet: helmetBase, chest, cape, armL: armL.a, armR: armR.a,
-            legL: legL.l, legR: legR.l, bootL: legL.b, bootR: legR.b, faceMesh,
+            rig, body, head, chest, sash, faceMesh, helmetBase, crest, cape, capeBase,
+            armL: armL.g, armR: armR.g, forearmL: armL.f, forearmR: armR.f,
+            legL: legL.hip, legR: legR.hip, shinL: legL.shin, shinR: legR.shin,
             shoulderL: armL.s, shoulderR: armR.s, weaponGroup, contact,
-            mat: armorMat, matLight: armorMat, baseColor: color
+            lungeX: 0
         };
         group.scale.setScalar(1.25);
         return group;
@@ -1226,7 +1308,7 @@
         const c1Color = myPlayerNum === 1 ? 0x43A047 : 0x1E88E5;
         char1 = createCharacter(c1Color);
         scene.add(char1);
-        char2 = createCharacter(0xE53935);
+        char2 = createCharacter(0xE53935, { horns: true });
         scene.add(char2);
         updateWeaponMesh(char1, 0);
         updateWeaponMesh(char2, 0);
@@ -1297,7 +1379,7 @@
         }
     }
 
-    function spawnSlashEffect(char, facingRight) {
+    function spawnSlashEffect(char, facingRight, variant = 0) {
         const weapon = weaponData[char === char1 ? localPlayer.weapon : remotePlayer.weapon] || weaponData[0];
         const dir = facingRight ? 1 : -1;
         const addLight = (mesh, color, intensity) => {
@@ -1307,17 +1389,41 @@
             return light;
         };
         if (weapon.kind === 'heavy') {
+            // v0 横扫：地面冲击波；v1 跳劈：更大的震荡 + 金色命中环
             const shock = new THREE.Mesh(fxGeos.shock, fxMats.shock.clone());
             shock.position.copy(char.position);
-            shock.position.x += dir * 0.65;
+            shock.position.x += dir * (variant === 1 ? 0.95 : 0.65);
             shock.position.y = 0.09;
             shock.rotation.x = -Math.PI / 2;
+            if (variant === 1) shock.scale.setScalar(1.5);
             scene.add(shock);
-            const light = addLight(shock, 0xffa500, 3.5);
-            effects.push({ mesh: shock, type: 'shock', life: 0, maxLife: 0.42, light, maxLightIntensity: 3.5 });
+            const light = addLight(shock, 0xffa500, variant === 1 ? 5.0 : 3.5);
+            effects.push({ mesh: shock, type: 'shock', life: 0, maxLife: variant === 1 ? 0.5 : 0.42, light, maxLightIntensity: variant === 1 ? 5.0 : 3.5 });
+            if (variant === 1) {
+                const ring = new THREE.Mesh(fxGeos.ringSmall, fxMats.hitRing.clone());
+                ring.position.copy(shock.position); ring.position.y = 0.4;
+                ring.rotation.x = -Math.PI / 2;
+                scene.add(ring);
+                effects.push({ mesh: ring, type: 'ring', life: 0, maxLife: 0.45 });
+            }
             return;
         }
         if (weapon.kind === 'polearm') {
+            if (variant === 1) {
+                // 大回环：宽刃弧光
+                const sweep = new THREE.Mesh(
+                    fxGeos.slash,
+                    new THREE.MeshBasicMaterial({ color: weapon.accent, transparent: true, opacity: 0.75, side: THREE.DoubleSide })
+                );
+                sweep.position.copy(char.position);
+                sweep.position.y = 1.6;
+                sweep.rotation.y = facingRight ? 0 : Math.PI;
+                sweep.scale.set(1.45, 0.75, 1.45);
+                scene.add(sweep);
+                const light = addLight(sweep, weapon.accent, 3.2);
+                effects.push({ mesh: sweep, type: 'slash', life: 0, maxLife: 0.38, light, maxLightIntensity: 3.2 });
+                return;
+            }
             const thrust = new THREE.Mesh(
                 fxGeos.thrust,
                 new THREE.MeshBasicMaterial({ color: weapon.accent, transparent: true, opacity: 0.78 })
@@ -1332,16 +1438,34 @@
             return;
         }
         if (weapon.kind === 'magic') {
+            // v1 高举召雷：更高更大的爆发
             const burst = new THREE.Mesh(
                 fxGeos.burst,
                 new THREE.MeshBasicMaterial({ color: weapon.color, transparent: true, opacity: 0.5 })
             );
             burst.position.copy(char.position);
             burst.position.x += dir * 1.05;
-            burst.position.y = 1.65;
+            burst.position.y = variant === 1 ? 2.4 : 1.65;
+            if (variant === 1) burst.scale.setScalar(1.35);
             scene.add(burst);
-            const light = addLight(burst, weapon.color, 4.0);
-            effects.push({ mesh: burst, type: 'burst', life: 0, maxLife: 0.34, light, maxLightIntensity: 4.0 });
+            const light = addLight(burst, weapon.color, variant === 1 ? 5.5 : 4.0);
+            effects.push({ mesh: burst, type: 'burst', life: 0, maxLife: 0.34, light, maxLightIntensity: variant === 1 ? 5.5 : 4.0 });
+            return;
+        }
+
+        // 拳套第三段上勾拳：爆发特效
+        if (weapon.name.includes('拳') && variant === 2) {
+            const burst = new THREE.Mesh(
+                fxGeos.burst,
+                new THREE.MeshBasicMaterial({ color: weapon.accent, transparent: true, opacity: 0.6 })
+            );
+            burst.position.copy(char.position);
+            burst.position.x += dir * 0.8;
+            burst.position.y = 2.1;
+            burst.scale.setScalar(0.75);
+            scene.add(burst);
+            const light = addLight(burst, weapon.accent, 3.5);
+            effects.push({ mesh: burst, type: 'burst', life: 0, maxLife: 0.3, light, maxLightIntensity: 3.5 });
             return;
         }
 
@@ -1354,10 +1478,21 @@
         slash.position.x += dir * (weapon.name.includes('拳') ? 0.72 : 1.08);
         slash.position.z += weapon.name.includes('冰') ? -0.18 : 0.18;
         slash.rotation.y = facingRight ? 0 : Math.PI;
-        slash.rotation.z = facingRight ? -0.28 : 0.28;
-        if (weapon.name.includes('火')) slash.scale.set(1.1, 0.85, 1.1);
-        if (weapon.name.includes('冰')) slash.scale.set(0.82, 1.24, 0.82);
-        if (weapon.name.includes('拳')) slash.scale.set(0.58, 0.58, 0.58);
+        if (variant === 1) {
+            // 回斩：反向倾斜
+            slash.rotation.z = facingRight ? 0.32 : -0.32;
+            slash.rotation.x = 0.3;
+        } else if (variant === 2) {
+            // 力劈：竖直下劈
+            slash.rotation.z = facingRight ? -1.35 : 1.35;
+            slash.position.y = 2.0;
+            slash.scale.setScalar(1.15);
+        } else {
+            slash.rotation.z = facingRight ? -0.28 : 0.28;
+        }
+        if (weapon.name.includes('火')) slash.scale.multiply(new THREE.Vector3(1.1, 0.85, 1.1));
+        if (weapon.name.includes('冰')) slash.scale.multiply(new THREE.Vector3(0.82, 1.24, 0.82));
+        if (weapon.name.includes('拳')) slash.scale.multiply(new THREE.Vector3(0.58, 0.58, 0.58));
         scene.add(slash);
         const light = addLight(slash, weapon.accent || 0xffffff, 3.0);
         effects.push({ mesh: slash, type: weapon.name.includes('拳') ? 'punch' : 'slash', life: 0, maxLife: 0.34, light, maxLightIntensity: 3.0 });
@@ -1652,10 +1787,39 @@
     }
 
     /* ═══════════════════════════════════════════
-       ANIMATION HELPERS
+       ANIMATION — 缓动函数 / 连击数 / 角色动画
     ═══════════════════════════════════════════ */
+    const Ease = {
+        outCubic: t => 1 - Math.pow(1 - t, 3),
+        inCubic: t => t * t * t,
+        outBack: t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+        outElastic: t => t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1
+    };
+
+    function attackVariantCount(weapon) {
+        if (weapon.name.includes('拳')) return 3;
+        switch (weapon.kind) {
+            case 'melee': return 3;
+            case 'heavy': case 'polearm': case 'magic': return 2;
+            default: return 1; // bow
+        }
+    }
+
     function animateCharacter(char, state, time) {
         const d = char.userData;
+        const rig = d.rig;
+
+        // ── 死亡倒地（KO 慢动作里演出）──
+        if (state.dead) {
+            const t = Math.min(1, (time - (state.deadAt || 0)) / 0.8);
+            const e = Ease.inCubic(t);
+            char.rotation.x = -1.5 * e;
+            char.rotation.z = 0.14 * e;
+            d.contact.material.opacity = 0.32 * (1 - e * 0.6);
+            return;
+        }
+
+        // ── 受击闪红 + 后仰 ──
         if (state.hurt) {
             const flash = Math.sin(time * 40) > 0;
             d.body.material.emissive.setHex(flash ? 0xff0000 : 0x000000);
@@ -1667,101 +1831,181 @@
             d.chest.material.emissive.setHex(0x000000);
         }
 
-        const isMoving = Math.abs(state.vx) > 0.4;
-        const bounce = Math.sin(time * (isMoving ? 13 : 3.2)) * (isMoving ? 0.08 : 0.026);
-        const sway = Math.sin(time * (isMoving ? 9 : 2)) * (isMoving ? 0.55 : 0.07);
-        if (d.cape) {
-            d.cape.rotation.x = 0.18 + Math.abs(sway) * 0.12;
-            d.cape.rotation.z = Math.sin(time * 3) * 0.06;
-        }
-        d.contact.scale.set(1 + Math.abs(bounce) * 0.3, 0.72 + Math.abs(bounce) * 0.15, 1);
+        const speed = Math.abs(state.vx || 0);
+        const moveT = Math.min(1, speed / 9.6);
+        d.lungeX = 0;
+        // 每帧先复位临时变换
+        rig.scale.set(1, 1, 1);
+        rig.rotation.set(0, 0, 0);
+        rig.position.y = 0;
+        d.armL.position.z = 0; d.armR.position.z = 0;
 
         if (state.attacking) {
+            /* ── 攻击：蓄势(windup) → 挥出(release) → 收势(recover) 三段曲线 ── */
             const weapon = weaponData[state.weapon] || weaponData[0];
-            const attackAge = state.attackStart >= 0 ? Math.max(0, time - state.attackStart) : 0;
-            const windup = Math.min(1, attackAge / 0.16);
-            const release = Math.min(1, Math.max(0, (attackAge - 0.12) / 0.18));
-            const swing = Math.sin(Math.min(1, release) * Math.PI);
+            const v = state.attackVariant || 0;
+            const T = weapon.kind === 'heavy' ? 0.52 : (weapon.kind === 'bow' && v === 1 ? 0.3 : 0.42);
+            const age = Math.max(0, time - (state.attackStart >= 0 ? state.attackStart : time));
+            const p = Math.min(1, age / T);
+            const windup = p < 0.32 ? Ease.outCubic(p / 0.32) : 1;
+            const release = p < 0.32 ? 0 : (p < 0.6 ? Ease.inCubic((p - 0.32) / 0.28) : 1);
+            const recover = p < 0.6 ? 0 : Ease.outCubic((p - 0.6) / 0.4);
+            const swing = release;
+            const dir = state.facingRight ? 1 : -1;
+            // 攻击突进（脚步跟手）
+            d.lungeX = dir * release * (1 - recover) * (weapon.kind === 'heavy' ? 0.4 : 0.6);
+            rig.rotation.x = 0.08 * swing;
 
             if (weapon.kind === 'bow') {
-                if (d.armL) { d.armL.rotation.z = 0.85; d.armL.rotation.x = -0.42; }
-                if (d.armR) { d.armR.rotation.z = -1.35 + windup * 0.28; d.armR.rotation.x = -0.86; }
-                if (d.weaponGroup) {
-                    d.weaponGroup.position.set(0.52, 1.6, 0.4);
-                    d.weaponGroup.rotation.set(0, 0, -0.18 + windup * 0.2);
-                }
-                char.rotation.z = state.facingRight ? -0.08 : 0.08;
+                // 拉弓：左臂前推，右臂后拉
+                d.armR.rotation.set(-1.35, 0, -0.1);
+                d.forearmR.rotation.x = -0.1;
+                d.armL.rotation.set(-1.15 - windup * 0.1, 0, 0.25);
+                d.forearmL.rotation.x = -0.9 * windup;
+                rig.rotation.y = -0.28 * windup;
+                rig.rotation.x = 0.05;
             } else if (weapon.kind === 'heavy') {
-                if (d.armR) {
-                    d.armR.rotation.z = -1.25 - swing * 0.9;
-                    d.armR.rotation.x = -1.2 + swing * 1.3;
-                    d.armR.position.z = 0.2 + swing * 0.4;
+                if (v === 0) { // 横扫重击
+                    d.armR.rotation.x = -1.3;
+                    d.forearmR.rotation.x = -0.15;
+                    d.armR.rotation.z = 1.25 * windup - 2.6 * swing + 0.8 * recover;
+                    rig.rotation.y = 0.4 * windup - 0.8 * swing;
+                    rig.rotation.x = 0.15 * swing;
+                } else { // 跳劈
+                    d.armR.rotation.x = -2.6 * windup + 2.5 * swing;
+                    d.armL.rotation.x = -2.4 * windup + 2.3 * swing;
+                    d.forearmR.rotation.x = -0.4 * (1 - swing);
+                    d.forearmL.rotation.x = -0.4 * (1 - swing);
+                    rig.position.y = 0.16 * windup * (1 - swing) - 0.14 * swing;
+                    rig.rotation.x = 0.3 * swing;
                 }
-                if (d.shoulderR) d.shoulderR.rotation.x = -0.7 - swing * 0.55;
-                if (d.weaponGroup) {
-                    d.weaponGroup.position.set(0.76 + swing * 0.18, 2.05 - swing * 0.34, 0.56 + swing * 0.35);
-                    d.weaponGroup.rotation.set(-0.9 + swing * 1.55, 0, -0.55 + swing * 0.65);
-                }
-                char.position.y = Math.sin(Math.min(1, release) * Math.PI) * 0.09;
-                char.rotation.z = state.facingRight ? -0.22 * swing : 0.22 * swing;
             } else if (weapon.kind === 'polearm') {
-                if (d.armR) { d.armR.rotation.z = -0.62; d.armR.rotation.x = -0.72; }
-                if (d.shoulderR) d.shoulderR.rotation.x = -0.3;
-                if (d.weaponGroup) {
-                    d.weaponGroup.position.set(0.9, 1.95, 0.72 + swing * 0.68);
-                    d.weaponGroup.rotation.set(0.38, 0, 0);
+                if (v === 0) { // 突刺
+                    d.armR.rotation.x = -1.15;
+                    d.forearmR.rotation.x = -0.5 * (1 - swing);
+                    d.armR.position.z = 0.55 * swing;
+                    rig.rotation.x = 0.22 * swing;
+                    rig.rotation.y = -0.3 * swing;
+                } else { // 大回环横扫
+                    d.armR.rotation.x = -1.4;
+                    d.forearmR.rotation.x = -0.1;
+                    d.armR.rotation.z = 1.2 * windup - 2.6 * swing;
+                    rig.rotation.y = 0.5 * windup - 1.0 * swing;
                 }
             } else if (weapon.kind === 'magic') {
-                if (d.armR) { d.armR.rotation.z = -1.4; d.armR.rotation.x = -0.4 - windup * 0.6 + release * 0.4; }
-                if (d.weaponGroup) {
-                    d.weaponGroup.position.set(0.65, 2.15, 0.85);
-                    d.weaponGroup.rotation.set(0, windup * Math.PI * 2, -0.2);
+                if (v === 0) { // 法球推出
+                    d.armR.rotation.x = -0.7 - 0.4 * windup - 0.5 * swing;
+                    d.forearmR.rotation.x = -0.7 * (1 - swing);
+                    rig.rotation.y = 0.25 * windup - 0.5 * swing;
+                } else { // 高举法杖召雷
+                    d.armR.rotation.x = -2.5 * windup - 0.1 * swing + 2.2 * recover;
+                    d.armL.rotation.x = -2.2 * windup + 2.0 * recover;
+                    rig.position.y = 0.1 * windup * (1 - recover);
                 }
-            } else { // melee/fist
-                const isPunch = weapon.name.includes('拳');
-                if (d.armR) {
-                    d.armR.rotation.z = -0.8 - swing * 0.5;
-                    d.armR.rotation.x = -0.3 + swing * (isPunch ? 1.0 : 1.2);
+            } else if (weapon.name.includes('拳')) {
+                if (v === 0) { // 右直拳
+                    d.armR.rotation.x = -0.6 - 0.2 * windup - 0.85 * swing + 0.6 * recover;
+                    d.forearmR.rotation.x = -0.8 * (1 - swing);
+                    rig.rotation.y = 0.15 - 0.4 * swing;
+                    d.armL.rotation.x = -0.5; d.forearmL.rotation.x = -0.9;
+                } else if (v === 1) { // 左摆拳
+                    d.armL.rotation.x = -1.1;
+                    d.armL.rotation.z = -1.0 * windup + 1.7 * swing - 0.5 * recover;
+                    d.forearmL.rotation.x = -0.4;
+                    rig.rotation.y = -0.2 + 0.45 * swing;
+                    d.armR.rotation.x = -0.5; d.forearmR.rotation.x = -0.9;
+                } else { // 右上勾拳
+                    d.armR.rotation.x = -0.3 - 0.3 * windup - 1.9 * swing + 1.4 * recover;
+                    d.forearmR.rotation.x = -1.0 + 0.6 * swing;
+                    rig.position.y = Math.sin(swing * Math.PI) * 0.16;
+                    rig.rotation.x = -0.12 * swing;
                 }
-                if (d.weaponGroup) {
-                    d.weaponGroup.position.set(0.65, 1.95, 0.5 + swing * (isPunch ? 0.3 : 0.2));
-                    d.weaponGroup.rotation.set(0, 0, -0.4 + swing * 1.2);
+            } else { // melee 刀剑三连击
+                d.forearmR.rotation.x = -0.2;
+                if (v === 0) { // 横斩
+                    d.armR.rotation.x = -1.35;
+                    d.armR.rotation.z = 1.05 * windup - 2.35 * swing + 0.8 * recover;
+                    rig.rotation.y = 0.35 * windup - 0.7 * swing;
+                } else if (v === 1) { // 回斩
+                    d.armR.rotation.x = -1.35;
+                    d.armR.rotation.z = -1.15 * windup + 2.45 * swing - 0.9 * recover;
+                    rig.rotation.y = -0.4 * windup + 0.75 * swing;
+                } else { // 力劈华山
+                    d.armR.rotation.x = -2.5 * windup + 2.15 * swing - 0.3 * recover;
+                    d.forearmR.rotation.x = -0.5 * (1 - swing);
+                    rig.position.y = -0.1 * swing;
+                    rig.rotation.x = 0.28 * swing;
+                    rig.rotation.y = 0;
                 }
-                char.rotation.z = state.facingRight ? -0.1 * swing : 0.1 * swing;
             }
-            if (d.cape) d.cape.rotation.x = 0.34 + swing * 0.12;
+            if (d.cape) d.cape.rotation.x = 0.3 + swing * 0.2;
         } else if (state.dodging) {
-            char.rotation.z = state.facingRight ? -0.4 : 0.4;
-            d.cape.rotation.x = 0.42;
+            /* ── 闪避：团身后跳 ── */
+            rig.scale.set(1.07, 0.88, 1.07);
+            rig.rotation.x = -0.2;
+            char.rotation.z = state.facingRight ? -0.45 : 0.45;
+            d.armL.rotation.set(0.35, 0, 0.55); d.forearmL.rotation.x = -1.1;
+            d.armR.rotation.set(0.35, 0, -0.55); d.forearmR.rotation.x = -1.1;
+            d.legL.rotation.x = 0.55; d.shinL.rotation.x = 1.0;
+            d.legR.rotation.x = -0.4; d.shinR.rotation.x = 0.75;
+            if (d.cape) d.cape.rotation.x = 0.5;
         } else {
-            const bob = bounce;
-            if (d.head) { d.head.position.y = 2.4 + bob; d.head.rotation.z = 0; }
-            if (d.helmet) d.helmet.position.y = 2.45 + bob;
-            if (d.body) d.body.position.y = 1.4 + bob * 0.5;
-            if (d.chest) d.chest.position.y = 1.65 + bob * 0.45;
-
-            const legSwing = sway;
-            if (d.legL) d.legL.rotation.x = legSwing;
-            if (d.legR) d.legR.rotation.x = -legSwing;
-            if (d.bootL) d.bootL.position.z = 0.08 + Math.max(0, -legSwing) * 0.12;
-            if (d.bootR) d.bootR.position.z = 0.08 + Math.max(0, legSwing) * 0.12;
-
-            const armSwing = Math.sin(time * (isMoving ? 10 : 2.5)) * (isMoving ? 0.42 : 0.1);
-            if (d.armL) { d.armL.rotation.x = -armSwing; d.armL.rotation.z = 0.12; }
-            if (d.armR) {
-                d.armR.rotation.x = armSwing;
-                d.armR.rotation.z = -0.12;
-                d.armR.position.z = 0;
-            }
-            if (d.shoulderR) d.shoulderR.rotation.x = 0;
-            if (d.weaponGroup) {
-                d.weaponGroup.position.set(0.55, 1.3, 0.2);
-                d.weaponGroup.rotation.set(0, 0, 0);
-            }
+            /* ── 移动 / 待机 混合 ── */
             char.rotation.z = 0;
+            const f = time * (6.5 + 5.5 * moveT);          // 步频随速度
+            const s0 = Math.sin(f), s1 = Math.sin(f + Math.PI);
+            // 双腿对摆 + 膝盖屈伸（后摆时弯膝）
+            d.legL.rotation.x = s0 * 0.72 * moveT;
+            d.legR.rotation.x = s1 * 0.72 * moveT;
+            d.shinL.rotation.x = Math.max(0, -Math.sin(f - 0.6)) * 0.95 * moveT;
+            d.shinR.rotation.x = Math.max(0, -Math.sin(f + Math.PI - 0.6)) * 0.95 * moveT;
+            // 双臂对摆（与腿反相）+ 肘部微屈
+            d.armL.rotation.x = s1 * 0.5 * moveT;
+            d.armR.rotation.x = s0 * 0.5 * moveT;
+            d.armL.rotation.z = 0.12; d.armR.rotation.z = -0.12;
+            d.forearmL.rotation.x = -0.25 - Math.max(0, s1) * 0.3 * moveT - 0.05;
+            d.forearmR.rotation.x = -0.25 - Math.max(0, s0) * 0.3 * moveT - 0.05;
+            // 身体：跑步前倾 + 上下颠 + 待机呼吸
+            const idleBob = Math.sin(time * 2.4) * 0.022;
+            rig.position.y = Math.abs(Math.cos(f)) * 0.075 * moveT + idleBob;
+            rig.rotation.x = 0.1 * moveT;
+            rig.rotation.z = Math.sin(f) * 0.03 * moveT;
+            // 呼吸（胸甲起伏）
+            const breath = 1 + Math.sin(time * 2.4) * 0.02 * (1 - moveT * 0.6);
+            d.chest.scale.set(breath, 1, breath);
+            // 头部小动作 + 眨眼
+            d.head.rotation.y = Math.sin(time * 0.7) * 0.14 * (1 - moveT);
+            d.head.rotation.z = Math.sin(time * 1.1) * 0.04;
+            const blink = (time % 3.7) < 0.12 ? 0.12 : 1;
+            d.faceMesh.scale.y = blink;
+            if (d.cape) d.cape.rotation.x = 0.16 + moveT * 0.35;
         }
 
+        // ── 受击后仰叠加 ──
+        if (state.hurt) rig.rotation.x -= 0.22;
+
+        // ── 披风顶点波浪 ──
+        if (d.cape) {
+            const pos = d.cape.geometry.attributes.position;
+            const amp = 0.05 + moveT * 0.12;
+            for (let i = 0; i < pos.count; i++) {
+                const bx = d.capeBase[i * 3], by = d.capeBase[i * 3 + 1];
+                const factor = Math.max(0, (1 - (by + 0.975) / 1.95)); // 顶部固定，越往下摆动越大
+                pos.array[i * 3 + 2] = d.capeBase[i * 3 + 2] + Math.sin(time * 3.2 + by * 2.4 + bx * 1.2) * amp * factor;
+                pos.array[i * 3] = bx + Math.sin(time * 2.1 + by * 1.6) * amp * 0.4 * factor;
+            }
+            pos.needsUpdate = true;
+        }
+        // 头饰摆动
+        if (d.crest) d.crest.rotation.x = Math.sin(time * 3) * 0.09 - moveT * 0.25;
+
+        // 阴影随起跳缩放
+        const h = rig.position.y;
+        d.contact.scale.setScalar(Math.max(0.6, 1 - h * 0.8));
+        d.contact.material.opacity = 0.32 * Math.max(0.4, 1 - h * 1.2);
+
         char.rotation.y = state.facingRight ? Math.PI * 0.42 : -Math.PI * 0.42;
+        char.position.x = state.x + d.lungeX;
     }
 
     /* ═══════════════════════════════════════════
@@ -1797,10 +2041,11 @@
             remotePlayer.attackStart = clock.getElapsedTime();
             remotePlayer.facingRight = action.facingRight;
             if (typeof action.weapon === 'number') remotePlayer.weapon = action.weapon;
+            remotePlayer.attackVariant = action.combo || 0;
             if (char2) {
                 const weapon = weaponData[remotePlayer.weapon] || weaponData[0];
                 if (weapon.kind === 'bow') spawnArrowEffect(char2, action.facingRight, remotePlayer.weapon);
-                else spawnSlashEffect(char2, action.facingRight);
+                else spawnSlashEffect(char2, action.facingRight, remotePlayer.attackVariant);
             }
             setTimeout(() => { remotePlayer.attacking = false; }, 420);
         } else if (action.type === 'dodge') {
@@ -2119,10 +2364,15 @@
         localPlayer.attacking = true;
         localPlayer.attackStart = time;
         nextAttackAt = time + ATTACK_COOLDOWN;
-        if (!practiceMode) socket.emit('gameAction', { roomId, action: { type: 'attack', facingRight: localPlayer.facingRight, weapon: localPlayer.weapon } });
+        // 连击：1.15 秒内连续攻击推进连段，否则从第一段重新开始
+        if (time > (localPlayer.comboResetAt || 0)) localPlayer.comboCount = 0;
+        localPlayer.attackVariant = (localPlayer.comboCount || 0) % attackVariantCount(weapon);
+        localPlayer.comboCount = (localPlayer.comboCount || 0) + 1;
+        localPlayer.comboResetAt = time + 1.15;
+        if (!practiceMode) socket.emit('gameAction', { roomId, action: { type: 'attack', facingRight: localPlayer.facingRight, weapon: localPlayer.weapon, combo: localPlayer.attackVariant } });
         if (char1) {
             if (weapon.kind === 'bow') spawnArrowEffect(char1, localPlayer.facingRight, localPlayer.weapon);
-            else spawnSlashEffect(char1, localPlayer.facingRight);
+            else spawnSlashEffect(char1, localPlayer.facingRight, localPlayer.attackVariant);
         }
         // 练习模式机器人读招闪避
         if (practiceMode && Math.random() < 0.22 && !remotePlayer.dodging) botDodge();
@@ -2184,10 +2434,12 @@
         remotePlayer.attackStart = time;
         remotePlayer.facingRight = localPlayer.x > remotePlayer.x;
         bot.nextAttackAt = time + 0.85 + Math.random() * 0.75;
+        bot.comboCount = (bot.comboCount || 0) + 1;
+        remotePlayer.attackVariant = bot.comboCount % attackVariantCount(weapon);
         audio.play('attack');
         if (char2) {
             if (weapon.kind === 'bow') spawnArrowEffect(char2, remotePlayer.facingRight, remotePlayer.weapon);
-            else spawnSlashEffect(char2, remotePlayer.facingRight);
+            else spawnSlashEffect(char2, remotePlayer.facingRight, remotePlayer.attackVariant);
         }
         const dist = Math.abs(localPlayer.x - remotePlayer.x);
         if (weapon.kind !== 'bow' && dist < weapon.range) {
@@ -2385,6 +2637,12 @@
         matchOver = true;
         canAct = false;
         document.getElementById('lowHpVignette').classList.remove('on');
+        // 败者倒地演出（配合 KO 慢动作）
+        const loser = iWon ? remotePlayer : localPlayer;
+        loser.dead = true;
+        loser.deadAt = clock.getElapsedTime();
+        loser.attacking = false;
+        loser.dodging = false;
         // KO 慢动作，然后展示结算
         slowMoUntil = clock.getElapsedTime() + 1.25;
         audio.play(iWon ? 'win' : 'lose');
